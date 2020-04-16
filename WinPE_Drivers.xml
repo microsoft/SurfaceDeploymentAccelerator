@@ -1,0 +1,405 @@
+<?xml version="1.0" encoding="utf-16"?>
+
+<!--
+# This Sample Code is provided for the purpose of illustration only and is not intended to be used
+# in a production environment. THIS SAMPLE CODE AND ANY RELATED INFORMATION ARE PROVIDED "AS IS" 
+# WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED 
+# WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE. We grant You a nonexclusive, 
+# royalty-free right to use and modify the Sample Code and to reproduce and distribute the object code 
+# form of the Sample Code, provided that You agree: (i) to not use Our name, logo, or trademarks to 
+# market Your software product in which the Sample Code is embedded; (ii) to include a valid copyright 
+# notice on Your software product in which the Sample Code is embedded; and (iii) to indemnify, hold 
+# harmless, and defend Us and Our suppliers from and against any claims or lawsuits, including attorneys’ 
+# fees, that arise or result from the use or distribution of the Sample Code.
+ 
+# This sample script is not supported under any Microsoft standard support program or service. 
+# The sample script is provided AS IS without warranty of any kind. Microsoft further disclaims 
+# all implied warranties including, without limitation, any implied warranties of merchantability 
+# or of fitness for a particular purpose. The entire risk arising out of the use or performance of 
+# the sample scripts and documentation remains with you. In no event shall Microsoft, its authors, 
+# or anyone else involved in the creation, production, or delivery of the scripts be liable for any 
+# damages whatsoever (including, without limitation, damages for loss of business profits, business 
+# interruption, loss of business information, or other pecuniary loss) arising out of the use of or 
+# inability to use the sample scripts or documentation, even if Microsoft has been advised of the 
+# possibility of such damages.
+-->
+
+<Surface>
+    <Devices>
+        <SurfacePro4>
+            <Drivers>
+                <Driver name="64gh4463.inf"/>
+                <Driver name="commonsystem.inf"/>
+                <Driver name="csi2hostcontrollerdriver.inf"/>
+                <Driver name="hdxsstm.inf"/>
+                <Driver name="heci.inf"/>
+                <Driver name="iacamera64.inf"/>
+                <Driver name="iaisp64.inf"/>
+                <Driver name="ialpss2_gpio2_skl.inf"/>
+                <Driver name="ialpss2_i2c_skl.inf"/>
+                <Driver name="ialpss2_spi_skl.inf"/>
+                <Driver name="ialpss2_uart2_skl.inf"/>
+                <Driver name="iaprecisetouch.inf"/>
+                <Driver name="intcaudiobus.inf"/>
+                <Driver name="intcdaud.inf"/>
+                <Driver name="intcoed.inf"/>
+                <Driver name="mbtr8897w81x64.inf"/>
+                <Driver name="mrvlpcie8897.inf"/>
+                <Driver name="msdokub.inf"/>
+                <Driver name="ov5693.inf"/>
+                <Driver name="ov7251.inf"/>
+                <Driver name="ov8865.inf"/>
+                <Driver name="skccontroller.inf"/>
+                <Driver name="skylakesystem.inf"/>
+                <Driver name="sunrisepoint-lpsdhost.inf"/>
+                <Driver name="sunrisepoint-lpsystem.inf"/>
+                <Driver name="surface3typecoverintegration.inf"/>
+                <Driver name="surfaceaccessorydevice.inf"/>
+                <Driver name="surfaceaccessoryfwupdate.inf"/>
+                <Driver name="surfaceacpibattery.inf"/>
+                <Driver name="surfacebutton.inf"/>
+                <Driver name="surfacecamerawindowshello.inf"/>
+                <Driver name="surfacecosar.inf"/>
+                <Driver name="surfacecoverclick.inf"/>
+                <Driver name="surfacedigitizerintegration.inf"/>
+                <Driver name="surfacedisplay.inf"/>
+                <Driver name="surfacedisplaycalibration.inf"/>
+                <Driver name="surfacedockfwupdate.inf"/>
+                <Driver name="surfacedockintegration.inf"/>
+                <Driver name="surfacefingerprintsensor.inf"/>
+                <Driver name="surfaceintegrationdriver.inf"/>
+                <Driver name="surfacekeyboardbacklight.inf"/>
+                <Driver name="surfacenvmexpresscontroller.inf"/>
+                <Driver name="surfacepen.inf"/>
+                <Driver name="surfacepenclickfilter.inf"/>
+                <Driver name="surfacependriver.inf"/>
+                <Driver name="surfacepenintegration.inf"/>
+                <Driver name="surfacepenpairing.inf"/>
+                <Driver name="surfacepowermeter.inf"/>
+                <Driver name="surfacepro4fwupdate.inf"/>
+                <Driver name="surfacepro4typecoverintegration.inf"/>
+                <Driver name="surfaceptpfilter.inf"/>
+                <Driver name="surfaceservicenulldriver.inf"/>
+                <Driver name="surfacestoragefwupdate.inf"/>
+                <Driver name="surfacesystemtelemetrydriver.inf"/>
+                <Driver name="surfacetouchservicingml.inf"/>
+                <Driver name="surfacetypecover.inf"/>
+                <Driver name="surfacetypecoverv3fwupdate.inf"/>
+                <Driver name="surfacetypecoverv3integration.inf"/>
+            </Drivers>
+        </SurfacePro4>
+        <SurfacePro5>
+            <Drivers>
+                <Driver name="dptf_acpi.inf"/>
+                <Driver name="dptf_cpu.inf"/>
+                <Driver name="heci.inf"/>
+                <Driver name="ialpss2_gpio2_skl.inf"/>
+                <Driver name="ialpss2_i2c_skl.inf"/>
+                <Driver name="ialpss2_spi_skl.inf"/>
+                <Driver name="ialpss2_uart2_skl.inf"/>
+                <Driver name="iaprecisetouch.inf"/>
+                <Driver name="kabylakesystem.inf"/>
+                <Driver name="sunrisepoint-lpsdhost.inf"/>
+                <Driver name="sunrisepoint-lpsystem.inf"/>
+                <Driver name="sunrisepoint-lpsystemlpss.inf"/>
+                <Driver name="sunrisepoint-lpsystemnorthpeak.inf"/>
+                <Driver name="sunrisepoint-lpsystemthermal.inf"/>
+                <Driver name="surfaceacpinotifydriver.inf"/>
+                <Driver name="surfacebutton.inf"/>
+                <Driver name="surfacenvmexpresscontroller.inf"/>
+                <Driver name="surfaceserialhubdriver.inf"/>
+            </Drivers>
+        </SurfacePro5>
+        <SurfacePro6>
+            <Drivers>
+                <Driver name="dptf_acpi.inf"/>
+                <Driver name="dptf_acpi.inf"/>
+                <Driver name="dptf_cpu.inf"/>
+                <Driver name="heci.inf"/>
+                <Driver name="hid_pci.inf"/>
+                <Driver name="ialpss2_gpio2_skl.inf"/>
+                <Driver name="ialpss2_i2c_skl.inf"/>
+                <Driver name="ialpss2_uart2_skl.inf"/>
+                <Driver name="iaprecisetouch.inf"/>
+                <Driver name="ish.inf"/>
+                <Driver name="ish_busdriver.inf"/>
+                <Driver name="kabylakesystem.inf"/>
+                <Driver name="mbtr8897w81x64.inf"/>
+                <Driver name="mrvlpcie8897.inf"/>
+                <Driver name="sunrisepoint-lpsystem.inf"/>
+                <Driver name="sunrisepoint-lpsystemthermal.inf"/>
+                <Driver name="surface3typecoverintegration.inf"/>
+                <Driver name="surfaceacpinotifydriver.inf"/>
+                <Driver name="surfacebutton.inf"/>
+                <Driver name="surfacecoverclick.inf"/>
+                <Driver name="surfaceintegrationdriver.inf"/>
+                <Driver name="surfacenvmexpresscontroller.inf"/>
+                <Driver name="surfacepen217fwupdate.inf"/>
+                <Driver name="surfacepen217integration.inf"/>
+                <Driver name="surfaceserialhubdriver.inf"/>
+                <Driver name="surfacetcondriver.inf"/>
+                <Driver name="surfacetouchservicingml.inf"/>
+            </Drivers>
+        </SurfacePro6>
+        <SurfacePro7>
+            <Drivers>
+                <Driver name="heci.inf"/>
+                <Driver name="ialpss2_gpio2_icl.inf"/>
+                <Driver name="ialpss2_i2c_icl.inf"/>
+                <Driver name="ialpss2_spi_icl.inf"/>
+                <Driver name="ialpss2_uart2_icl.inf"/>
+                <Driver name="iaprecisetouch.inf"/>
+                <Driver name="icelakepch-lpsystem.inf"/>
+                <Driver name="icelakepch-lpsystemlpss.inf"/>
+                <Driver name="icelakepch-lpsystemnorthpeak.inf"/>
+                <Driver name="surfaceacpinotifydriver.inf"/>
+                <Driver name="surfacebattery.inf"/>
+                <Driver name="surfacedockintegration.inf"/>
+                <Driver name="surfacehidminidriver.inf"/>
+                <Driver name="surfacehotplug.inf"/>
+                <Driver name="surfaceintegrationdriver.inf"/>
+                <Driver name="surfacenvmexpresscontroller.inf"/>
+                <Driver name="surfaceserialhubdriver.inf"/>
+                <Driver name="surfaceservicenulldriver.inf"/>
+                <Driver name="surfacestoragefwupdate.inf"/>
+            </Drivers>
+        </SurfacePro7>
+        <SurfaceLaptop>
+            <Drivers>
+                <Driver name="dptf_acpi.inf"/>
+                <Driver name="dptf_cpu.inf"/>
+                <Driver name="dptf_pch.inf"/>
+                <Driver name="esif_manager.inf"/>
+                <Driver name="heci.inf"/>
+                <Driver name="ialpss2_gpio2_skl.inf"/>
+                <Driver name="ialpss2_i2c_skl.inf"/>
+                <Driver name="ialpss2_spi_skl.inf"/>
+                <Driver name="ialpss2_uart2_skl.inf"/>
+                <Driver name="iaprecisetouch.inf"/>
+                <Driver name="mbtr8897w81x64.inf"/>
+                <Driver name="mrvlpcie8897.inf"/>
+                <Driver name="surfaceacpinotifydriver.inf"/>
+                <Driver name="surfacebutton.inf"/>
+                <Driver name="surfacehidminidriver.inf"/>
+                <Driver name="surfaceintegrationdriver.inf"/>
+                <Driver name="surfaceserialhubdriver.inf"/>
+                <Driver name="surfacetouchservicingml.inf"/>
+            </Drivers>
+        </SurfaceLaptop>
+        <SurfaceLaptop2>
+            <Drivers>
+                <Driver name="detectionverificationdrv.inf"/>
+                <Driver name="dptf_acpi.inf"/>
+                <Driver name="dptf_cpu.inf"/>
+                <Driver name="dptf_pch.inf"/>
+                <Driver name="esif_manager.inf"/>
+                <Driver name="heci.inf"/>
+                <Driver name="ialpss2_gpio2_skl.inf"/>
+                <Driver name="ialpss2_i2c_skl.inf"/>
+                <Driver name="ialpss2_spi_skl.inf"/>
+                <Driver name="ialpss2_uart2_skl.inf"/>
+                <Driver name="iaprecisetouch.inf"/>
+                <Driver name="iclsclient.inf"/>
+                <Driver name="kabylakesystem.inf"/>
+                <Driver name="realtekext.inf"/>
+                <Driver name="realtekhsa.inf"/>
+                <Driver name="sunrisepoint-lpsdhost.inf"/>
+                <Driver name="sunrisepoint-lpsystem.inf"/>
+                <Driver name="sunrisepoint-lpsystemthermal.inf"/>
+                <Driver name="surfaceaccessoryfwupdate.inf"/>
+                <Driver name="surfaceacpinotifydriver.inf"/>
+                <Driver name="surfacebutton.inf"/>
+                <Driver name="surfacehidminidriver.inf"/>
+                <Driver name="surfaceintegrationdriver.inf"/>
+                <Driver name="surfacenvmexpresscontroller.inf"/>
+                <Driver name="surfacependriver.inf"/>
+                <Driver name="surfacepenintegration.inf"/>
+                <Driver name="surfaceserialhubdriver.inf"/>
+                <Driver name="surfacesoftwareservicingdriver.inf"/>
+            </Drivers>
+        </SurfaceLaptop2>
+        <SurfaceLaptop3>
+            <Drivers>
+                <Driver name="heci.inf"/>
+                <Driver name="ialpss2_gpio2_icl.inf"/>
+                <Driver name="ialpss2_i2c_icl.inf"/>
+                <Driver name="ialpss2_spi_icl.inf"/>
+                <Driver name="ialpss2_uart2_icl.inf"/>
+                <Driver name="iaprecisetouch.inf"/>
+                <Driver name="icelakepch-lpsystem.inf"/>
+                <Driver name="icelakepch-lpsystemlpss.inf"/>
+                <Driver name="icelakepch-lpsystemnorthpeak.inf"/>
+                <Driver name="surfaceacpinotifydriver.inf"/>
+                <Driver name="surfacebattery.inf"/>
+                <Driver name="surfacedockintegration.inf"/>
+                <Driver name="surfacehidminidriver.inf"/>
+                <Driver name="surfacehotplug.inf"/>
+                <Driver name="surfaceintegrationdriver.inf"/>
+                <Driver name="surfacenvmexpresscontroller.inf"/>
+                <Driver name="surfaceserialhubdriver.inf"/>
+                <Driver name="surfaceservicenulldriver.inf"/>
+                <Driver name="surfacestoragefwupdate.inf"/>
+            </Drivers>
+        </SurfaceLaptop3>
+        <SurfaceBook>
+            <Drivers>
+                <Driver name="64gh4463.inf"/>
+                <Driver name="commonsystem.inf"/>
+                <Driver name="csi2hostcontrollerdriver.inf"/>
+                <Driver name="hdxsstm.inf"/>
+                <Driver name="heci.inf"/>
+                <Driver name="iacamera64.inf"/>
+                <Driver name="iaisp64.inf"/>
+                <Driver name="ialpss2_gpio2_skl.inf"/>
+                <Driver name="ialpss2_i2c_skl.inf"/>
+                <Driver name="ialpss2_spi_skl.inf"/>
+                <Driver name="ialpss2_uart2_skl.inf"/>
+                <Driver name="iaprecisetouch.inf"/>
+                <Driver name="intcaudiobus.inf"/>
+                <Driver name="intcdaud.inf"/>
+                <Driver name="intcoed.inf"/>
+                <Driver name="mbtr8897w81x64.inf"/>
+                <Driver name="mrvlpcie8897.inf"/>
+                <Driver name="nvmso.inf"/>
+                <Driver name="ov5693.inf"/>
+                <Driver name="ov7251.inf"/>
+                <Driver name="ov8865.inf"/>
+                <Driver name="skccontroller.inf"/>
+                <Driver name="skylakesystem.inf"/>
+                <Driver name="sunrisepoint-lpsdhost.inf"/>
+                <Driver name="sunrisepoint-lpsystem.inf"/>
+                <Driver name="surfaceaccessoryfwupdate.inf"/>
+                <Driver name="surfaceacpibattery.inf"/>
+                <Driver name="surfacebasefwupdate.inf"/>
+                <Driver name="surfacebaseintegration.inf"/>
+                <Driver name="surfacebutton.inf"/>
+                <Driver name="surfacecamerawindowshello.inf"/>
+                <Driver name="surfacedigitizerintegration.inf"/>
+                <Driver name="surfacedisplay.inf"/>
+                <Driver name="surfacedisplaycalibration.inf"/>
+                <Driver name="surfacedockfwupdate.inf"/>
+                <Driver name="surfacedockintegration.inf"/>
+                <Driver name="surfacedtxdriver.inf"/>
+                <Driver name="surfaceintegrationdriver.inf"/>
+                <Driver name="surfacekeyboardbacklight.inf"/>
+                <Driver name="surfacenvmexpresscontroller.inf"/>
+                <Driver name="surfacepen.inf"/>
+                <Driver name="surfacepenclickfilter.inf"/>
+                <Driver name="surfacependriver.inf"/>
+                <Driver name="surfacepenintegration.inf"/>
+                <Driver name="surfacepenpairing.inf"/>
+                <Driver name="surfacepowermeter.inf"/>
+                <Driver name="surfaceservicenulldriver.inf"/>
+                <Driver name="surfacesoftwareservicingdriver.inf"/>
+                <Driver name="surfacestoragefwupdate.inf"/>
+                <Driver name="surfacesystemtelemetrydriver.inf"/>
+                <Driver name="surfacetouchservicingml.inf"/>
+                <Driver name="surfaceusbhubfwupdate.inf"/>
+            </Drivers>
+        </SurfaceBook>
+        <SurfaceBook2>
+            <Drivers>
+                <Driver name="64jp4840.inf"/>
+                <Driver name="64zh4840.inf"/>
+                <Driver name="accessorybluetoothpairing.inf"/>
+                <Driver name="commonsystem.inf"/>
+                <Driver name="csi2hostcontrollerdriver.inf"/>
+                <Driver name="digitizerintegration.inf"/>
+                <Driver name="dptf_acpi.inf"/>
+                <Driver name="dptf_cpu.inf"/>
+                <Driver name="esif_manager.inf"/>
+                <Driver name="hdxsstm.inf"/>
+                <Driver name="heci.inf"/>
+                <Driver name="iacamera64.inf"/>
+                <Driver name="iactrllogic64.inf"/>
+                <Driver name="iaisp64.inf"/>
+                <Driver name="ialpss2_gpio2_skl.inf"/>
+                <Driver name="ialpss2_i2c_skl.inf"/>
+                <Driver name="ialpss2_spi_skl.inf"/>
+                <Driver name="ialpss2_uart2_skl.inf"/>
+                <Driver name="iaprecisetouch.inf"/>
+                <Driver name="intcaudiobus.inf"/>
+                <Driver name="intcdaud.inf"/>
+                <Driver name="intcoed.inf"/>
+                <Driver name="kabylakesystem.inf"/>
+                <Driver name="maximpowermeter.inf"/>
+                <Driver name="mbtr8897w81x64.inf"/>
+                <Driver name="mrvlpcie8897.inf"/>
+                <Driver name="ov5693.inf"/>
+                <Driver name="ov7251.inf"/>
+                <Driver name="ov8865.inf"/>
+                <Driver name="sunrisepoint-lpsdhost.inf"/>
+                <Driver name="sunrisepoint-lpsystem.inf"/>
+                <Driver name="sunrisepoint-lpsystemlpss.inf"/>
+                <Driver name="sunrisepoint-lpsystemnorthpeak.inf"/>
+                <Driver name="sunrisepoint-lpsystemthermal.inf"/>
+                <Driver name="surfaceaccessoryfwupdate.inf"/>
+                <Driver name="surfaceacpinotifydriver.inf"/>
+                <Driver name="surfacebase2integration.inf"/>
+                <Driver name="surfacebutton.inf"/>
+                <Driver name="surfacedisplay.inf"/>
+                <Driver name="surfacedisplay.inf"/>
+                <Driver name="surfacedisplaycolor.inf"/>
+                <Driver name="surfacedockfwupdate.inf"/>
+                <Driver name="surfacedockintegration.inf"/>
+                <Driver name="surfacedtxdriver.inf"/>
+                <Driver name="surfacekeyboardbacklight.inf"/>
+                <Driver name="surfacenvmexpresscontroller.inf"/>
+                <Driver name="surfacependriver.inf"/>
+                <Driver name="surfacepenpairing.inf"/>
+                <Driver name="surfacepowermeterdriver.inf"/>
+                <Driver name="surfaceserialhubdriver.inf"/>
+                <Driver name="surfacestoragefwupdate.inf"/>
+                <Driver name="surfacesystemtelemetrydriver.inf"/>
+                <Driver name="surfacetcondriver.inf"/>
+                <Driver name="surfacetouchservicingml.inf"/>
+                <Driver name="surfaceusbhubfwupdate.inf"/>
+            </Drivers>
+        </SurfaceBook2>
+        <SurfaceStudio>
+            <Drivers>
+                <Driver name="e1d65x64.inf"/>
+                <Driver name="heci.inf"/>
+                <Driver name="ialpss2_gpio2_skl.inf"/>
+                <Driver name="ialpss2_i2c_skl.inf"/>
+                <Driver name="iastorac.inf"/>
+                <Driver name="mbtr8897w81x64.inf"/>
+                <Driver name="mrvlpcie8897.inf"/>
+                <Driver name="skylakesystem.inf"/>
+                <Driver name="skylakesystemgmm.inf"/>
+                <Driver name="sunrisepoint-hsystem.inf"/>
+                <Driver name="sunrisepoint-hsystemthermal.inf"/>
+                <Driver name="surfacebutton.inf"/>
+                <Driver name="surfaceintegrationdriver.inf"/>
+            </Drivers>
+        </SurfaceStudio>
+        <SurfaceStudio2>
+            <Drivers>
+                <Driver name="dptf_acpi.inf"/>
+                <Driver name="dptf_cpu.inf"/>
+                <Driver name="heci.inf"/>
+                <Driver name="ialpss2_gpio2_skl.inf"/>
+                <Driver name="ialpss2_i2c_skl.inf"/>
+                <Driver name="ialpss2_spi_skl.inf"/>
+                <Driver name="ialpss2_uart2_skl.inf"/>
+                <Driver name="kabylakesystem.inf"/>
+                <Driver name="kabylakesystemgmm.inf"/>
+                <Driver name="sunrisepoint-hsystem.inf"/>
+                <Driver name="sunrisepoint-hsystemlpss.inf"/>
+                <Driver name="sunrisepoint-hsystemthermal.inf"/>
+                <Driver name="surfaceacpinotifydriver.inf"/>
+                <Driver name="surfacebutton.inf"/>
+                <Driver name="surfaceintegrationdriver.inf"/>
+                <Driver name="surfaceserialhubdriver.inf"/>
+            </Drivers>
+        </SurfaceStudio2>
+        <SurfaceGo>
+            <Drivers>
+            </Drivers>
+        </SurfaceGo>
+        <SurfaceGoLTE>
+            <Drivers>
+            </Drivers>
+        </SurfaceGoLTE>
+    </Devices>
+</Surface>
