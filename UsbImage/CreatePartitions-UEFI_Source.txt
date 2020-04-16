@@ -1,0 +1,19 @@
+clean
+convert gpt
+create partition efi size=260
+format quick fs=fat32 label="System"
+assign letter=S
+create partition msr size=128
+create partition primary 
+shrink minimum=1024
+gpt attributes=0x0000000000000000
+format quick fs=ntfs label="Local Disk"
+assign letter=W
+create partition primary size=1024
+set id=DE94BBA4-06D1-4D40-A16A-BFD50179D6AC
+gpt attributes=0x8000000000000001
+format quick fs=ntfs label="Windows RE tools"
+assign letter=T
+rescan
+exit
+
