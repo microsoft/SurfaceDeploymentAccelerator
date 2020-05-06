@@ -1,3 +1,34 @@
+<#
+.SYNOPSIS
+    This script partitions the disk and applies a WIM or SWM files and sets recovery.
+
+    // *************
+    // *  CAUTION  *
+    // *************
+
+    Please review this script THOROUGHLY before applying, and disable changes below as necessary to suit your current environment.
+
+    This script is provided AS-IS - usage of this source assumes that you are at the very least familiar with PowerShell, and the
+    tools used to create and debug this script.
+
+    In other words, if you break it, you get to keep the pieces.
+    
+.NOTES
+    Author:       Microsoft
+    Last Update:  6th May 2020
+    Version:      1.1.0
+
+    Version 1.1.0
+    - Added support for running in a VM
+    - Added support for running from an ISO or other read-only media
+
+    Version 1.0.0
+    - Initial release
+#>
+
+
+cls
+
 Function New-RegKey
 {
     param($key)
@@ -19,9 +50,9 @@ Function New-RegKey
 Function ClearTPM
 {
     $TPM = Get-WmiObject -Class "Win32_Tpm" -Namespace "ROOT\CIMV2\Security\MicrosoftTpm"
-    
+
     Write-Output "Clearing TPM ownership....."
-    $ClearRequest = $TPM.SetPhysicalPresenceRequest(14)
+    $ClearRequest = $TPM.SetPhysicalPresenceRequest(14) | Out-Null
     If ($ClearRequest.ReturnValue -eq 0)
     {
         Write-Output "Successfully cleared the TPM chip. A reboot is required."
@@ -237,51 +268,13 @@ If ($ENV:PROCESSOR_ARCHITECTURE -eq 'ARM64')
 
 If ($ExecutionContext.SessionState.LanguageMode -eq "FullLanguage")
 {
-    # This can probably be reverted as new devices come along, but red on DarkBlue is unreadable on current DUT
+    # This can probably be reverted as new devices come along, but red on DarkBlue is unreadable on current devices
     $host.UI.RawUI.BackgroundColor = "Black"
     $Host.UI.RawUI.ForegroundColor = "White"
     $host.UI.RawUI.WindowTitle = "$(Get-Location)"
 }
 
-$RemovableDisks = Get-Partition | Where-Object {$_.DiskId -like "*usbstor*"}
-ForEach ($RemovableDisk in $RemovableDisks)
-{
-    $Drive = $RemovableDisk.DriveLetter
-    $DriveLetter = $Drive + ":\"
-    $SourceUSBKey = Get-ChildItem -Path "$DriveLetter" -Recurse | Where-Object { $_.Name -eq "Imaging.ps1" }
-    If ($SourceUSBKey)
-    {
-        $Folder = Get-ChildItem -Path "$DriveLetter" -Recurse | Where-Object { $_.PSIsContainer -and $_.Name -like "Sources*" }
-        $DiskPartScript = Get-ChildItem -Path "X:\" -Recurse | Where-Object { $_.Name -eq "CreatePartitions-UEFI.txt" }
-        $DiskPartScriptSource = Get-ChildItem -Path "X:\" -Recurse | Where-Object { $_.Name -eq "CreatePartitions-UEFI_Source.txt" }
-        $WIMFile = Get-ChildItem -Path $DriveLetter -Recurse | Where-Object { $_.Name -like "*install*.wim" }
-        $SWMFile = Get-ChildItem -Path $DriveLetter -Recurse | Where-Object { $_.Name -like "*install*--Split.swm" }
-        If ($DiskPartScript)
-        {
-            $DiskPartScriptPath = $DiskPartScript.FullName
-            $DiskPartScriptSourcePath = $DiskPartScriptSource.FullName
-        }
-        If ($WIMFile)
-        {
-            [string]$WIMFilePath = $WIMFile.FullName
-        }
-        If ($SWMFile)
-        {
-            $SplitWIM = $true
-            $SWMFilePath = $SWMFile.FullName
-            $SWMFilePattern = $SWMFile.DirectoryName + "\" + $SWMFile.BaseName + '*.swm'
-        }
-    }
-    Else
-    {
-        Break
-    }
-}
-
 $scriptPath = Split-Path -parent $MyInvocation.MyCommand.Definition
-$diskpart = "$env:windir\System32\diskpart.exe"
-$managebde = "$env:windir\System32\manage-bde.exe"
-$bcdboot = "$env:windir\System32\bcdboot.exe"
 
 
 
@@ -291,15 +284,17 @@ Write-Output "********************"
 
 $UEFIVer = ($(& wmic bios get SMBIOSBIOSVersion /format:table)[2])
 Write-Output "- UEFI Information: $UEFIVer"
+Write-Output ""
 Write-Output "- WinPE Information"
 $RegPath = "Registry::HKEY_LOCAL_MACHINE\Software"
 $WinPEVersion = ""
+
 $CurrentVersion = Get-ItemProperty -Path "$RegPath\Microsoft\Surface\OSImage" -ErrorAction SilentlyContinue
 If ($CurrentVersion)
 {
     try
     {
-        Write-Output "   - ImageName $($CurrentVersion.ImageName)"
+        Write-Output "   - ImageName        $($CurrentVersion.ImageName)"
         $WinPEVersion = $($CurrentVersion.ImageName)
     }
     catch {}
@@ -309,20 +304,115 @@ If ($CurrentVersion)
     }
     catch {}
 }
+
 $NTCurrentVersion = Get-ItemProperty -Path "$RegPath\Microsoft\Windows NT\CurrentVersion" -ErrorAction SilentlyContinue
 If ($NTCurrentVersion)
 {
     try
     {
-        Write-Output "   - BuildLab $($NTCurrentVersion.BuildLab)"
-        Write-Output "   - BuildLabEx $($NTCurrentVersion.BuildLabEx)"
-        Write-Output "   - ProductName $($NTCurrentVersion.ProductName)"
+        Write-Output "   - BuildLab         $($NTCurrentVersion.BuildLab)"
+        Write-Output "   - BuildLabEx       $($NTCurrentVersion.BuildLabEx)"
+        Write-Output "   - ProductName      $($NTCurrentVersion.ProductName)"
     }
     catch {}
 }
 
+Write-Output ""
+Write-Output "- Hardware Information"
+$SystemInformation = (Get-WmiObject -Namespace root\wmi -Class MS_SystemInformation)
 
-ClearTpm
+If ($SystemInformation)
+{
+    try
+    {
+        Write-Output "   - Manufacturer     $($SystemInformation.BaseBoardManufacturer)"
+        Write-Output "   - Product          $($SystemInformation.BaseBoardProduct)"
+        Write-Output "   - SystemSKU        $($SystemInformation.SystemSKU)"
+    }
+    catch {}
+}
+Write-Output ""
+Write-Output ""
+
+
+# Make sure we have valid diskpart scripts and installation WIM/SWMs located before we go further
+$diskpart = "$env:windir\System32\diskpart.exe"
+$managebde = "$env:windir\System32\manage-bde.exe"
+$bcdboot = "$env:windir\System32\bcdboot.exe"
+
+$RamDrive = (Get-Location).Drive.Name
+$DriveLetter = $RamDrive + ":\"
+$SourceDrive = Get-ChildItem -Path "$DriveLetter" -Recurse | Where-Object { $_.Name -eq "Imaging.ps1" }
+
+If ($SourceDrive)
+{
+    $Folder = Get-ChildItem -Path "$DriveLetter" -Recurse | Where-Object { $_.PSIsContainer -and $_.Name -like "Sources*" }
+    $DiskPartScript = Get-ChildItem -Path "X:\" -Recurse | Where-Object { $_.Name -eq "CreatePartitions-UEFI.txt" }
+    $DiskPartScriptSource = Get-ChildItem -Path "X:\" -Recurse | Where-Object { $_.Name -eq "CreatePartitions-UEFI_Source.txt" }
+    If ($DiskPartScript)
+    {
+        $DiskPartScriptPath = $DiskPartScript.FullName
+        $DiskPartScriptSourcePath = $DiskPartScriptSource.FullName
+    }
+}
+
+Write-Output "Finding all attached drives with recognized filesystems..."
+Write-Output ""
+$Drives = Get-PSDrive | Where-Object { $_.Provider -like "*FileSystem*" }
+If (!($Drives))
+{
+    Write-Output "No drives found, exiting."
+    Write-Output ""
+    Exit
+}
+Else
+{
+    Write-Output "Drives Found:"
+    $Drives
+    Write-Output ""
+    Write-Output ""
+    $WIMFound = $false
+}
+
+ForEach ($Drive in $Drives)
+{
+    $TempDrive = $Drive.Root
+    Write-Output "Checking drive $TempDrive for WIM/SWM files..."
+    $WIMFile = Get-ChildItem -Path $TempDrive -Recurse | Where-Object { $_.Name -like "*install*.wim" }
+    $SWMFile = Get-ChildItem -Path $TempDrive -Recurse | Where-Object { $_.Name -like "*install*--Split.swm" }
+    If ($WIMFile)
+    {
+        $WIMFound = $true
+        $WIMFilePath = $WIMFile.FullName
+        Write-Output "Found file $WIMFilePath"
+        Write-Output ""
+        Break
+    }
+    ElseIf ($SWMFile)
+    {
+        $WIMFound = $true
+        $SplitWIM = $true
+        $SWMFilePath = $SWMFile.FullName
+        Write-Output "Found file $SWMFilePath"
+        Write-Output ""
+        $SWMFilePattern = $SWMFile.DirectoryName + "\" + $SWMFile.BaseName + '*.swm'
+        Break
+    }
+    Else
+    {
+        Write-Output "Could not find any WIM files in $TempDrive, continuing..."
+        Write-Output ""
+    }
+}
+
+If ($WIMFound -eq $false)
+{
+    Write-Output "WIM/SWM file(s) not found.  Exiting..."
+    Write-Output ""
+    Write-Output "WIMFound:  $WIMFound"
+    Write-Output ""
+    Exit
+}
 
 
 # Configure installation disk
@@ -334,10 +424,21 @@ Get-Content -Path $DiskPartScriptSourcePath | Add-Content -Path $DiskPartScriptP
 & $diskpart /s $DiskPartScriptPath
 
 
-# Enable XTS-AES 256bit cipher and bitlocker used space
-Write-Output "Enabling XTS-AES 256Bit Bitlocker encryption"
-EnableBitlocker
-& $managebde -on W: -UsedSpaceOnly
+# Enable Bitlocker
+If ("$($SystemInformation.Family)" -like "*Virtual*")
+{
+    # VM, don't try to clear TPM
+}
+Else
+{
+    ClearTpm
+    Start-Sleep 2
+    Write-Output "Enabling XTS-AES 256Bit Bitlocker encryption"
+    EnableBitlocker
+    & $managebde -on W: -UsedSpaceOnly
+    Write-Output ""
+    Write-Output ""
+}
 
 
 # Apply image
@@ -370,6 +471,7 @@ If (!(Test-Path "$RecoveryPath"))
 {
     New-Item -Path "$RecoveryPath" -ItemType "directory" | Out-Null
 }
+
 If (!(Test-Path "$WinREPath"))
 {
     New-Item -Path "$WinREPath" -ItemType "directory" | Out-Null
@@ -379,10 +481,8 @@ Write-Output "Copying W:\Windows\System32\Recovery\WinRE.WIM to $WinREPath..."
 Copy-Item -Path "W:\Windows\System32\Recovery\WinRE.wim" -Destination $WinREPath
 $reagentc = "W:\Windows\System32\reagentc.exe"
 & $reagentc /setreimage /path $WinREWIM /target W:\Windows
-#& $reagentc /info
 Write-Output ""
 Sleep 2
-
 
 
 # Use MessageBox to prompt for reboot

@@ -1,7 +1,16 @@
 # SurfaceDeploymentAccelerator
 Surface Deployment Accelerator (SDA) is a script-driven tool to create Windows images (WIM) for test or deployment that closely match the configuration of Bare Metal Recovery (BMR) images, minus certain preinstalled applications like Microsoft Office and the Surface UWP application.
 
+# Need help?
+Please use this GitHub Repos issue tracking capability to raise issues or feature requests.
+
+# How to use
 This tool is run via executiong "CreateSurfaceWindowsImage.ps1" as an administrator, and requires access to a Windows ISO file to provide the image to manipulate.  If driver or Windows updates are desired, internet access is required to download.  The script uses the Windows deployment tools from the ADK, so if the latest ADK is not already installed, it will be downloaded and installed during script execution.
+
+Example:
+
+.\CreateSurfaceWindowsImage.ps1 -ISO "D:\18362.1.190318-1202.19h1_release_CLIENT_BUSINESS_VOL_x64FRE_en-us.iso" -DestinationFolder "D:\Temp" -Architecture x64 -Device SurfacePro7 -CreateUSB $True
+
 
 The parameters that are available to the script are as follows:
 

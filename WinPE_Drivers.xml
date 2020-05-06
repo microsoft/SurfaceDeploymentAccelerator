@@ -356,6 +356,33 @@
                 <Driver name="surfaceusbhubfwupdate.inf"/>
             </Drivers>
         </SurfaceBook2>
+        <SurfaceBook3>
+            <Drivers>
+                <Driver name="commonsystem.inf"/>
+                <Driver name="heci.inf"/>
+                <Driver name="ialpss2_gpio2_icl.inf" />
+                <Driver name="ialpss2_i2c_icl.inf"/>
+                <Driver name="ialpss2_spi_icl.inf"/>
+                <Driver name="ialpss2_uart2_icl.inf"/>
+                <Driver name="iaprecisetouch.inf"/>
+                <Driver name="icelakepch-lpsystem.inf"/>
+                <Driver name="icelakepch-lpsystemlpss.inf"/>
+                <Driver name="icelakepch-lpsystemnorthpeak.inf"/>
+                <Driver name="icelakepch-lpsystemthermal.inf"/>
+                <Driver name="icelakeusbfunctioncontroller.inf"/>
+                <Driver name="oemextension.inf"/>
+                <Driver name="rtsuersdoms.inf"/>
+                <Driver name="surfacebattery.inf"/>
+                <Driver name="surfacebookbasev3fwupdate.inf"/>
+                <Driver name="surfacedtxdriver.inf"/>
+                <Driver name="surfacehidminidriver.inf"/>
+                <Driver name="surfacehotplug.inf"/>
+                <Driver name="surfacehpmi.inf"/>
+                <Driver name="surfacenvmexpresscontroller.inf"/>
+                <Driver name="surfaceserialhubdriver.inf"/>
+                <Driver name="surfacetimealarmacpifilter.inf"/>
+            </Drivers>
+        </SurfaceBook3>
         <SurfaceStudio>
             <Drivers>
                 <Driver name="e1d65x64.inf"/>
@@ -401,5 +428,9 @@
             <Drivers>
             </Drivers>
         </SurfaceGoLTE>
+        <SurfaceGo2>
+            <Drivers>
+            </Drivers>
+        </SurfaceGo2>
     </Devices>
 </Surface>

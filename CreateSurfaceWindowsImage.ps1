@@ -22,8 +22,15 @@
 
 .NOTES
     Author:       Microsoft
-    Last Update:  30 January 2020
-    Version:      1.0.0
+    Last Update:  6th May 2020
+    Version:      1.1.0
+
+    Version 1.1.0
+    - Added support for local driver paths
+    - Added support for Surface Go 2 and Surface Book 3
+
+    Version 1.0.0
+    - Initial release
 #>
 
 
@@ -93,9 +100,9 @@ Param(
     [Parameter(
         Position=9,
         Mandatory=$False,
-        HelpMessage="Surface device type to add drivers to image for, if not specified no drivers injected"
+        HelpMessage="Surface device type to add drivers to image for, if not specified no drivers injected - Custom can be used if using with a non-Surface device"
         )]
-        [ValidateSet('SurfacePro4', 'SurfacePro5', 'SurfacePro6', 'SurfacePro7', 'SurfaceLaptop', 'SurfaceLaptop2', 'SurfaceLaptop3', 'SurfaceBook', 'SurfaceBook2', 'SurfaceStudio', 'SurfaceStudio2', 'SurfaceGo', 'SurfaceGoLTE')]
+        [ValidateSet('SurfacePro4', 'SurfacePro5', 'SurfacePro6', 'SurfacePro7', 'SurfaceLaptop', 'SurfaceLaptop2', 'SurfaceLaptop3', 'SurfaceBook', 'SurfaceBook2', 'SurfaceBook3', 'SurfaceStudio', 'SurfaceStudio2', 'SurfaceGo', 'SurfaceGoLTE', 'SurfaceGo2', 'Custom')]
         [string]$Device = "SurfacePro7",
 
     [Parameter(
@@ -108,37 +115,58 @@ Param(
     [Parameter(
         Position=11,
         Mandatory=$False,
+        HelpMessage="Create bootable ISO file (useful for testing) when finished (bool true/false, default is false)"
+        )]
+        [bool]$CreateISO = $False,
+
+    [Parameter(
+        Position=12,
+        Mandatory=$False,
         HelpMessage="Location of Windows ADK installation"
         )]
         [string]$WindowsKitsInstall = "${env:ProgramFiles(x86)}\Windows Kits\10\Assessment and Deployment Kit",
 
     [Parameter(
-        Position=12,
+        Position=13,
         Mandatory=$False,
         HelpMessage="Use BITS for downloads"
         )]
         [bool]$BITSTransfer = $True,
 
     [Parameter(
-        Position=13,
+        Position=14,
         Mandatory=$False,
         HelpMessage="Edit Install.wim"
         )]
         [bool]$InstallWIM = $True,
 
     [Parameter(
-        Position=14,
+        Position=15,
         Mandatory=$False,
         HelpMessage="Edit boot.wim"
         )]
         [bool]$BootWIM = $True,
 
     [Parameter(
-        Position=15,
+        Position=16,
         Mandatory=$False,
         HelpMessage="Keep original unsplit WIM even if resulting image size >4GB (bool true false, default is true)"
         )]
-        [bool]$KeepOriginalWIM = $True
+        [bool]$KeepOriginalWIM = $True,
+
+    [Parameter(
+        Position=17,
+        Mandatory=$False,
+        HelpMessage="Use a local driver path instead of downloading an MSI (bool true false, default is false)"
+        )]
+        [bool]$UseLocalDriverPath = $False,
+
+    [Parameter(
+        Position=18,
+        Mandatory=$False,
+        HelpMessage="Path to an extracted driver folder - required if you set UseLocalDriverPath variable to true or script will not find any drivers to inject"
+        )]
+        [string]$LocalDriverPath
     )
 
 
@@ -475,7 +503,7 @@ Function Download-LatestUpdates
     {
         If ($Servicing)
         {
-            $global:KBGUID = $array | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Servicing Stack Update for Windows 10*") -and ($_.description -like "*$OSBuild*")}
+            $global:KBGUID = $array | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Servicing Stack Update for Windows 10*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
             If ($global:KBGUID.Count -gt 1)
             {
                 $largest = ($global:KBGUID | Measure-Object -Property description -Maximum)
@@ -693,7 +721,7 @@ Function Get-LatestUpdates
     }
     If ($Adobe)
     {
-        Write-Output "Attempting to find and download Adobe Flash Player updates for $Architecture Windows 10 version $OSBuild..." | Receive-Output -Color Gray
+        Write-Output "Attempting to find and download Adobe Flash Player updates for $Architecture Windows 10 version $OSBuild for month $Date..." | Receive-Output -Color Gray
         $uri = $AdobeURI
         Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $False -Cumulative $False -CumulativeDotNet $False -Adobe $True -OSBuild $OSBuild
         If (!($global:KBGUID))
@@ -754,6 +782,114 @@ Function ExtractMSIFile
 
 
 
+Function Get-LatestSurfaceEthernetDrivers
+{
+    Param(
+        $Device,
+        $TempFolder
+    )
+    Write-Output ""
+    Write-Output ""
+
+    $DeviceDriverPath = "$TempFolder\$Device"
+
+    If ($Device -eq "SurfaceHub2S")
+    {
+        # Nothing yet
+    }
+    Else
+    {
+        $URI = "http://www.catalog.update.microsoft.com/Search.aspx?q=Surface net Windows 10"
+        $kbObj = Invoke-WebRequest -Uri $URI -UseBasicParsing
+
+        $global:KBGUID = $null
+        $kbObjectLinks = ($kbObj.Links | Where-Object {$_.id -match "_link"})
+        $array = @()
+
+
+        $kbObj = Invoke-WebRequest -Uri $uri -UseBasicParsing
+
+        # Parse the Response
+        $global:KBGUID = $null
+        $kbObjectLinks = ($kbObj.Links | Where-Object {$_.id -match "_link"})
+        $array = @()
+
+        ForEach ($link in $kbObjectLinks)
+        {
+            $xmlNode = [XML]($link.outerHTML)
+
+            If ($xmlNode.HasChildNodes)
+            {
+                $kbId = $link.id -replace "_link", ""
+                $description = $xmlNode.FirstChild.InnerText.Trim()
+                $array += [PSCustomObject]@{
+                    kbId = $kbId
+                    description = $description
+                }
+            }
+        }
+
+        If ($array.count -gt 0)
+        {
+            $global:KBGUID = $array | Where-Object {($_.description -like "*Surface - Net - 10.*")}
+
+            If ($global:KBGUID.Count -gt 1)
+            {
+                $largest = ($global:KBGUID | Measure-Object -Property description -Maximum)
+                $global:KBGUID = $global:KBGUID | Where-Object {$_.description -eq $largest.Maximum}
+            }
+        }
+
+        ForEach ($Object in $global:KBGUID)
+        {
+            $kb = $Object.kbId
+            $curTxt = $Object.description
+    
+            ##Create Post Request to get the Download URL of the Update
+            $Post = @{ size = 0; updateID = $kb; uidInfo = $kb } | ConvertTo-Json -Compress
+            $PostBody = @{ updateIDs = "[$Post]" }
+    
+            ## Fetch and parse the download URL
+            $PostRes = (Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -Method Post -Body $postBody).content
+            $DownloadLinks = ($PostRes | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } } ).source
+            If ($DownloadLinks)
+            {
+                If ($DownloadLinks.Count -gt 1)
+                {
+                    ForEach ($URL in $DownloadLinks)
+                    {
+                        Write-Output "Download found:" | Receive-Output -Color Green
+                        Write-Output $curTxt | Receive-Output -Color White
+                        Write-Output ""
+                        Write-Output ""
+                        DownloadFile -URL $URL -Path "$DeviceDriverPath"
+                        Write-Output ""
+                        Write-Output ""
+                        Write-Output ""
+                        Write-Output ""
+                        Write-Output ""
+                    }
+                }
+                Else
+                {
+                    Write-Output "Download found:" | Receive-Output -Color Green
+                    Write-Output $curTxt | Receive-Output -Color White
+                    Write-Output ""
+                    Write-Output ""
+                    DownloadFile -URL $DownloadLinks -Path "$DeviceDriverPath"
+                    Write-Output ""
+                    Write-Output ""
+                    Write-Output ""
+                    Write-Output ""
+                    Write-Output ""
+                }
+            }
+        }
+    }
+}
+
+
+
 Function Get-LatestDrivers
 {
     Param(
@@ -776,16 +912,50 @@ Function Get-LatestDrivers
         New-Item -path "$DeviceDriverPath" -ItemType "directory" | Out-Null
     }
 
-    Write-Output "Downloading latest drivers for $Device, Windows 10 version $global:OSVersion..." | Receive-Output -Color White
-    
-    $OSBuild = New-Object string (,@($global:OSVersion.ToCharArray() | Select-Object -Last 5))
-    $URL = "https://aka.ms/" + $Device + "/" + $OSBuild
+    If ($UseLocalDriverPath -eq $True)
+    {
+        If (!(Test-Path "$LocalDriverPath"))
+        {
+            Write-Output "$LocalDriverPath not found, continuing without drivers..." | Receive-Output -Color Yellow
+            $Device = $null
+        }
+        Else
+        {
+            # Use local drivers
+            Write-Output "Using $LocalDriverPath..." | Receive-Output -Color White
+            $TempDeviceDriverPath = "$DeviceDriverPath\Extract"
+            If (Test-Path "$TempDeviceDriverPath")
+            {
+                Write-Output "Deleting $TempDeviceDriverPath\..." | Receive-Output -Color Gray
+                Get-ChildItem -Path "$TempDeviceDriverPath" -Recurse | Remove-Item -Force -Recurse
+                Remove-Item -Path "$TempDeviceDriverPath" -Force
+            }
+            If (!(Test-Path "$TempDeviceDriverPath"))
+            {
+                New-Item -path "$TempDeviceDriverPath" -ItemType "directory" | Out-Null
+            }
 
-    $DownloadedFile = DownloadFile -URL $URL -Path "$DeviceDriverPath"
-    Write-Output "Downloaded File: $DownloadedFile"
+            Write-Output "Copying drivers from $LocalDriverPath to $TempDeviceDriverPath..." | Receive-Output -Color White
+            & xcopy.exe /herky "$LocalDriverPath" "$TempDeviceDriverPath"
+            Write-Output ""
+        }
+    }
+    Else
+    {
+        Write-Output "Downloading latest drivers for $Device, Windows 10 version $global:OSVersion..." | Receive-Output -Color White
+        $OSBuild = New-Object string (,@($global:OSVersion.ToCharArray() | Select-Object -Last 5))
+        $URL = "https://aka.ms/" + $Device + "/" + $OSBuild
 
-    $FileToExtract = $DownloadedFile
-    ExtractMSIFile -MsiFile $FileToExtract -Path $DeviceDriverPath
+        $DownloadedFile = DownloadFile -URL $URL -Path "$DeviceDriverPath"
+        Write-Output "Downloaded File: $DownloadedFile"
+
+        $FileToExtract = $DownloadedFile
+        ExtractMSIFile -MsiFile $FileToExtract -Path $DeviceDriverPath
+        Write-Output ""
+    }
+
+    Write-Output "Downloading latest Surface Ethernet drivers for $Device..." | Receive-Output -Color White
+    Get-LatestSurfaceEthernetDrivers -Device $Device -TempFolder $TempFolder
     Write-Output ""
 }
 
@@ -994,7 +1164,7 @@ Function Get-OSWIMFromISO
         Write-Output "ISO successfully mounted at $Drive" | Receive-Output -Color White
         Write-Output ""   
     }
-    else
+    Else
     {
         Write-Output "Failed to mount the ISO. Please verify the ISO path and try again" | Receive-Output -Color Red
         Exit
@@ -1002,45 +1172,64 @@ Function Get-OSWIMFromISO
 
     Write-Output "Parsing install.wim file(s) in $Drive for images..." | Receive-Output -Color White
     $WIMs = Get-ChildItem -Path "$Drive" -Filter install.wim -Recurse
+    $OSWIMFound = $False
 
     # Required to get ReleaseId value, which is needed for 1909
     ForEach ($WIM in $WIMs)
     {
         $TempWIM = $WIM.FullName
-
-        $OSWIM = Get-WindowsImage -ImagePath $TempWIM | Where-Object {$_.ImageName -like "*$($OSSKU)"}
-
-        $ImagePath = $OSWIM.ImagePath
-        $ImageIndex = $OSWIM.ImageIndex
-        $ImageName = $OSWIM.ImageName
-
-        If ($ImageName -like "*$($OSSKU)")
+        $OSWIM = Get-WindowsImage -ImagePath $TempWIM | Where-Object {($_.ImageName -like "*$($OSSKU)") -or ($_.ImageName -like "*$($OSSKU) Evaluation") -or ($_.ImageName -like "*$OSSKU) LTSC")}
+        If (!($OSWIM))
         {
-            $global:OSVersion = (Get-WindowsImage -ImagePath "$ImagePath" -Index "$ImageIndex").Version
+            # $OSSKU not found
         }
-        If ($global:OSVersion)
+        Else
         {
-            $global:OSVersion = $global:OSVersion.Substring(0, $global:OSVersion.LastIndexOf('.'))
-            Write-Output "Mounting $ImagePath in $ScratchMountFolder..." | Receive-Output -Color White
-            Mount-WindowsImage -ImagePath $ImagePath -Index $ImageIndex -Path $ScratchMountFolder -ReadOnly | Out-Null
-            Start-Sleep 5
-            Write-Output "Querying image registry for ReleaseId..." | Receive-Output -Color White
-            reg.exe load "HKLM\Mount" "$ScratchMountFolder\Windows\system32\config\SOFTWARE"
-            $Key = "HKLM:\Mount\Microsoft\Windows NT\CurrentVersion"
-            $global:ReleaseId = (Get-ItemProperty -Path $Key -Name ReleaseId).ReleaseId
-            Start-Sleep 5
-            Write-Output "Unloading image registry..." | Receive-Output -Color White
-            reg unload "HKLM\Mount"
-            Start-Sleep 5
-            Write-Output "Dismounting $ScratchMountFolder..."
-            Dismount-WindowsImage -Path $ScratchMountFolder  -Discard | Out-Null
-            Write-Output ""
+            $ImagePath = $OSWIM.ImagePath
+            $ImageIndex = $OSWIM.ImageIndex
+            $ImageName = $OSWIM.ImageName
+
+            Write-Output "Found image matching $OSSKU :" | Receive-Output -Color Gray
+            Write-Output "Image Path:  $ImagePath" | Receive-Output -Color White
+            Write-Output "Image Index: $ImageIndex" | Receive-Output -Color White
+            Write-Output "Image Name:  $ImageName" | Receive-Output -Color White
+
+            If (($ImageName -like "*$($OSSKU)") -or ($ImageName -like "*$($OSSKU) Evaluation") -or ($ImageName -like "*$OSSKU) LTSC"))
+            {
+                $global:OSVersion = (Get-WindowsImage -ImagePath "$ImagePath" -Index "$ImageIndex").Version
+                $OSWIMFound = $True
+            }
+            If ($global:OSVersion)
+            {
+                $global:OSVersion = $global:OSVersion.Substring(0, $global:OSVersion.LastIndexOf('.'))
+                Write-Output "Mounting $ImagePath in $ScratchMountFolder..." | Receive-Output -Color White
+                Mount-WindowsImage -ImagePath $ImagePath -Index $ImageIndex -Path $ScratchMountFolder -ReadOnly | Out-Null
+                Start-Sleep 5
+                Write-Output "Querying image registry for ReleaseId..." | Receive-Output -Color White
+                & reg.exe load "HKLM\Mount" "$ScratchMountFolder\Windows\system32\config\SOFTWARE"
+                $Key = "HKLM:\Mount\Microsoft\Windows NT\CurrentVersion"
+                $global:ReleaseId = (Get-ItemProperty -Path $Key -Name ReleaseId).ReleaseId
+                Start-Sleep 5
+                Write-Output "Unloading image registry..." | Receive-Output -Color White
+                & reg.exe unload "HKLM\Mount"
+                Start-Sleep 5
+                Write-Output "Dismounting $ScratchMountFolder..."
+                Dismount-WindowsImage -Path $ScratchMountFolder  -Discard | Out-Null
+                Write-Output ""
+            }
+            # Specific 1909 check as it will report as 10.0.18362 still when offline
+            If ($global:ReleaseId -eq "1909")
+            {
+                $global:OSVersion = "10.0.18363"
+            }
         }
-        # Specific 1909 check as it will report as 10.0.18362 still when offline
-        If ($global:ReleaseId -eq "1909")
-        {
-            $global:OSVersion = "10.0.18363"
-        }
+    }
+
+    If ($OSWIMFound -eq $False)
+    {
+        Dismount-DiskImage -ImagePath $ISO | Out-Null
+        Write-Output "$OSSKU not found in $WIMs on $ISO.  Please make sure to use an ISO file that contains $OSSKU, and try again." | Receive-Output -Color Red
+        Exit
     }
 
     If (!(Test-Path "$Mount"))
@@ -1220,7 +1409,8 @@ Function Update-Win10WIM
         [string]$WinREImageMountFolder,
         [string]$TempFolder,
         [string]$WindowsKitsInstall,
-        [bool]$MakeUSBMedia
+        [bool]$MakeUSBMedia,
+        [bool]$MakeISOMedia
     )
     
 
@@ -1624,8 +1814,6 @@ Function Update-Win10WIM
             $SplitImage = "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Generic-Install-$Build-$OSSKU-$Now--Split.swm"
         }
 
-
-
         # Dismount the reference image
         Write-Output "Saving $TmpImage..." | Receive-Output -Color White
         DisMount-WindowsImage -Path $ImageMountFolder -Save -CheckIntegrity
@@ -1649,8 +1837,6 @@ Function Update-Win10WIM
             Write-Output ""
             Write-Output ""
         }
-
-
 
         # Remove temporary WIMs
         If (Test-Path -path $TmpImage)
@@ -1829,7 +2015,7 @@ Function Update-Win10WIM
         Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\en-us\WinPE-WinReCfg_en-us.cab" | Out-Null
 
 
-        If ($MakeUSBMedia)
+        If (($MakeUSBMedia) -or ($MakeISOMedia))
         {
             Write-Host "Copying scripts to $BootImageMountFolder..."
             Copy-Item -Path "$WorkingDirPath\UsbImage\CreatePartitions-UEFI.txt" -Destination $BootImageMountFolder
@@ -1889,8 +2075,8 @@ Function Update-Win10WIM
     }
 
 
-    # Make a USB key
-    If ($MakeUSBMedia)
+    # Make a USB key or ISO
+    If (($MakeUSBMedia) -or ($MakeISOMedia))
     {
         If (Test-Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media")
         {
@@ -1939,62 +2125,92 @@ Function Update-Win10WIM
         Copy-Item -Path "$WorkingDirPath\UsbImage\Install.cmd" -Destination "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media"
         Copy-Item -Path "$WorkingDirPath\UsbImage\startnet.cmd" -Destination "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media"
         
-        Write-Output "Insert USB drive 16GB+ in size, and press ENTER" | Receive-Output -Color Yellow
-        Write-Output "      !!!THIS WILL FORMAT THE DRIVE!!!" | Receive-Output -Color Yellow
-        Write-Output ""
-        PAUSE
-        Start-Sleep 5
-
-        $TempUSB = (Get-PhysicalDisk | Where-Object {$_.BusType -eq "USB" -and $_.MediaType -ne "SSD"}).FriendlyName
-
-        If (!($TempUSB))
+        If ($MakeUSBMedia)
         {
-            Write-Warning "No USB key found, skipping..."
-        }
-        Else
-        {
-            Write-Output "Getting USB drive ready..." | Receive-Output -Color White
+            Write-Output "Insert USB drive 16GB+ in size, and press ENTER" | Receive-Output -Color Yellow
+            Write-Output "      !!!THIS WILL FORMAT THE DRIVE!!!" | Receive-Output -Color Yellow
+            Write-Output ""
+            PAUSE
+            Start-Sleep 5
+
             $TempUSB = (Get-PhysicalDisk | Where-Object {$_.BusType -eq "USB" -and $_.MediaType -ne "SSD"}).FriendlyName
-            $USB = Get-Disk | Where-Object {$_.FriendlyName -like $TempUSB}
-            $USBSize = $USB.Size /1GB
 
-            Get-Disk -FriendlyName $TempUSB | Clear-Disk -RemoveData -Confirm:$false
-            Initialize-Disk -FriendlyName $TempUSB -PartitionStyle MBR -ErrorAction SilentlyContinue
-
-            If ($USBSize -ge "32")
+            If (!($TempUSB))
             {
-                $NewUSBDriveLetter = New-Partition -DiskNumber $USB.DiskNumber -Size 32GB -AssignDriveLetter | Format-Volume -FileSystem FAT32 -NewFileSystemLabel $Device
-            }
-            ElseIf ($USBSize -lt "14")
-            {
-                Write-Warning "USB drive not 16GB or larger, skipping..."
+                Write-Warning "No USB key found, skipping..."
             }
             Else
             {
-                $NewUSBDriveLetter = New-Partition -DiskNumber $USB.DiskNumber -UseMaximumSize -AssignDriveLetter | Format-Volume -FileSystem FAT32 -NewFileSystemLabel $Device
+                Write-Output "Getting USB drive ready..." | Receive-Output -Color White
+                $TempUSB = (Get-PhysicalDisk | Where-Object {$_.BusType -eq "USB" -and $_.MediaType -ne "SSD"}).FriendlyName
+                $USB = Get-Disk | Where-Object {$_.FriendlyName -like $TempUSB}
+                $USBSize = $USB.Size /1GB
+
+                Get-Disk -FriendlyName $TempUSB | Clear-Disk -RemoveData -Confirm:$false
+                Initialize-Disk -FriendlyName $TempUSB -PartitionStyle MBR -ErrorAction SilentlyContinue
+
+                If ($USBSize -ge "32")
+                {
+                    $NewUSBDriveLetter = New-Partition -DiskNumber $USB.DiskNumber -Size 32GB -AssignDriveLetter | Format-Volume -FileSystem FAT32 -NewFileSystemLabel $Device
+                }
+                ElseIf ($USBSize -lt "14")
+                {
+                    Write-Warning "USB drive not 16GB or larger, skipping..."
+                }
+                Else
+                {
+                    $NewUSBDriveLetter = New-Partition -DiskNumber $USB.DiskNumber -UseMaximumSize -AssignDriveLetter | Format-Volume -FileSystem FAT32 -NewFileSystemLabel $Device
+                }
+
+                $NewUSBDriveLetter = $NewUSBDriveLetter.DriveLetter + ":"
+
+                Write-Output "Copying WinPE Media contents to $NewUSBDriveLetter..." | Receive-Output -Color White
+                & bootsect.exe /nt60 $NewUSBDriveLetter /force /mbr
+                & xcopy /herky "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media" $NewUSBDriveLetter
+
+                If ($SplitWIM -eq $True)
+                {
+                    $SplitWIMs = Get-ChildItem -Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture" -Filter *install*$Now*.swm -Recurse
+                    ForEach ($TempWIM in $SplitWIMs)
+                    {
+                        $TempSplitWIM = $TempWIM.FullName
+                        Write-Output "Copying $TempSplitWIM to $NewUSBDriveLetter..." | Receive-Output -Color White
+                        Copy-Item -Path "$TempSplitWIM" -Destination "$NewUSBDriveLetter\Sources" -Force
+                    }
+                }
+                Else
+                {
+                    Write-Output "Copying $RefImage to $NewUSBDriveLetter..." | Receive-Output -Color White
+                    Copy-Item -Path "$RefImage" -Destination "$NewUSBDriveLetter\Sources" -Recurse
+                }
             }
+        }
 
-            $NewUSBDriveLetter = $NewUSBDriveLetter.DriveLetter + ":"
-
-            Write-Output "Copying WinPE Media contents to $NewUSBDriveLetter..." | Receive-Output -Color White
-            & bootsect.exe /nt60 $NewUSBDriveLetter /force /mbr
-            & xcopy /herky "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media" $NewUSBDriveLetter
-
+        If ($MakeISOMedia)
+        {
+            $oscdimg = "$WindowsKitsInstall\Deployment Tools\$Arch\Oscdimg\oscdimg.exe"
+            $efisys = "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\fwfiles\efisys.bin"
+            $etfsboot = "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\fwfiles\etfsboot.com"
+            $MediaSource = "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media"
+            $args = "-l$Device -bootdata:2#p0,e,b$etfsboot#pEF,e,b$efisys -m -u1 -udfver102 $MediaSource $DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\$Device-Boot-$Build-$Now.iso"
+            
             If ($SplitWIM -eq $True)
             {
                 $SplitWIMs = Get-ChildItem -Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture" -Filter *install*$Now*.swm -Recurse
                 ForEach ($TempWIM in $SplitWIMs)
                 {
                     $TempSplitWIM = $TempWIM.FullName
-                    Write-Output "Copying $TempSplitWIM to $NewUSBDriveLetter..." | Receive-Output -Color White
-                    Copy-Item -Path "$TempSplitWIM" -Destination "$NewUSBDriveLetter\Sources" -Force
+                    Write-Output "Copying $TempSplitWIM to $MediaSource..." | Receive-Output -Color White
+                    Copy-Item -Path "$TempSplitWIM" -Destination "$MediaSource\Sources" -Force
                 }
             }
             Else
             {
-                Write-Output "Copying $RefImage to $NewUSBDriveLetter..." | Receive-Output -Color White
-                Copy-Item -Path "$RefImage" -Destination "$NewUSBDriveLetter\Sources" -Recurse
+                Write-Output "Copying $RefImage to $MediaSource..." | Receive-Output -Color White
+                Copy-Item -Path "$RefImage" -Destination "$MediaSource\Sources" -Recurse
             }
+
+            Start-Process -FilePath $oscdimg -ArgumentList $args -NoNewWindow -Wait
         }
     }
 
@@ -2012,6 +2228,13 @@ Function Update-Win10WIM
 
     Write-Output "Finalized image files can be found here:" | Receive-Output -Color White
     Write-Output ""
+    If ($CreateISO)
+    {
+        If (Test-Path("$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\$Device-Boot-$Build-$Now.iso"))
+        {
+            Write-Output "ISO:      $$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\$Device-Boot-$Build-$Now.iso" | Receive-Output -Color Green
+        }
+    }
     If ($SplitWIM -eq $True)
     {
         Write-Output "Install:  $SplitImage" | Receive-Output -Color Green
@@ -2020,7 +2243,6 @@ Function Update-Win10WIM
     {
         Write-Output "Install:  $RefImage" | Receive-Output -Color Green
     }
-    
     Write-Output "Boot:     $RefBootImage" | Receive-Output -Color Green
 }
 
@@ -2079,31 +2301,38 @@ Write-Output " *       Parameters passed to script:        *" | Receive-Output -
 Write-Output " *                                           *" | Receive-Output -Color Cyan
 Write-Output " *********************************************" | Receive-Output -Color Cyan
 Write-Output ""
-Write-Output "ISO path:                   $ISO" | Receive-Output -Color White
-Write-Output "OS SKU:                     $OSSKU" | Receive-Output -Color White
-Write-Output "Output:                     $DestinationFolder" | Receive-Output -Color White
-Write-Output "Architecture:               $Architecture" | Receive-Output -Color White
-Write-Output ".NET 3.5:                   $DotNet35" | Receive-Output -Color White
-Write-Output "Servicing Stack:            $ServicingStack" | Receive-Output -Color White
-Write-Output "Cumulative Update:          $CumulativeUpdate" | Receive-Output -Color White
-Write-Output "Cumulative DotNet Updates:  $CumulativeUpdate" | Receive-Output -Color White
-Write-Output "Adobe Flash Player Updates: $AdobeFlashUpdate" | Receive-Output -Color White
-Write-Output "Surface device:             $Device" | Receive-Output -Color White
-Write-Output "Create USB key:             $CreateUSB" | Receive-Output -Color White
-Write-Output "ADK installation:           $WindowsKitsInstall" | Receive-Output -Color White
-Write-Output "Use BITS transfer:          $BITSTransfer" | Receive-Output -Color White
-Write-Output "Scratch:                    $ScratchMountFolder" | Receive-Output -Color White
+Write-Output "ISO path:                     $ISO" | Receive-Output -Color White
+Write-Output "OS SKU:                       $OSSKU" | Receive-Output -Color White
+Write-Output "Output:                       $DestinationFolder" | Receive-Output -Color White
+Write-Output "Architecture:                 $Architecture" | Receive-Output -Color White
+Write-Output "  .NET 3.5:                   $DotNet35" | Receive-Output -Color White
+Write-Output "  Servicing Stack:            $ServicingStack" | Receive-Output -Color White
+Write-Output "  Cumulative Update:          $CumulativeUpdate" | Receive-Output -Color White
+Write-Output "  Cumulative DotNet Updates:  $CumulativeUpdate" | Receive-Output -Color White
+Write-Output "  Adobe Flash Player Updates: $AdobeFlashUpdate" | Receive-Output -Color White
+Write-Output "  Device drivers:             $Device" | Receive-Output -Color White
+If ($UseLocalDriverPath -eq $True)
+{
+    Write-Output "  Use Local driver path:      $LocalDriverPath" | Receive-Output -Color White
+}
+Write-Output "  Create USB key:             $CreateUSB" | Receive-Output -Color White
+Write-Output "  Create ISO:                 $CreateISO" | Receive-Output -Color White
 Write-Output ""
 Write-Output ""
 Start-Sleep 2
 
 
-# Pull Windows 10 version and SKU from ISO provided by customer, returns OSVersion and WinPEVersion variable as well
+# Pull Windows 10 version and SKU from ISO provided by script param, returns OSVersion and WinPEVersion variable as well
 Get-OSWIMFromISO -ISO $ISO -OSSKU $OSSKU -DestinationFolder $DestinationFolder -Architecture $Architecture -WindowsKitsInstall $WindowsKitsInstall -ScratchMountFolder $ScratchMountFolder
 Start-Sleep 2
-Write-Host "OSVersion:  " $global:OSVersion
-Write-Host "ReleaseId:  " $global:ReleaseId
-Start-Sleep 10
+Write-Output "OSVersion:  " $global:OSVersion | Receive-Output -Color White
+Write-Output "ReleaseId:  " $global:ReleaseId | Receive-Output -Color White
+Write-Output ""
+Write-Output ""
+Write-Output ""
+Write-Output ""
+Write-Output ""
+Start-Sleep 5
 
 
 # Variables needed after Get-OSWIMFromISO finishes, passed to Update-Win10WIM
@@ -2119,18 +2348,26 @@ If ($BootWIM)
 
 
 # Download any components requested
+If ($Device)
+{
+    Get-LatestDrivers -TempFolder $TempFolder -Device $Device
+}
+
+# We always need the VC Runtimes for our devices
+Get-LatestVCRuntimes -TempFolder $TempFolder
+
+# If installing DotNet 3.5, the latest updates are also required - override any user parameters
 If ($DotNet35 -eq $True)
 {
     $ServicingStack = $True
     $CumulativeUpdate = $True
     $CumulativeDotNetUpdate = $True
-    Get-CumulativeDotNetUpdates -TempFolder $TempFolder
 }
 
+# Latest Servicing Stack is likely needed (if it exists) for the latest Cumulative Update to install successfully
 If ($CumulativeUpdate -eq $True)
 {
     $ServicingStack = $True
-    Get-CumulativeUpdates -TempFolder $TempFolder
 }
 
 If ($ServicingStack -eq $True)
@@ -2138,23 +2375,24 @@ If ($ServicingStack -eq $True)
     Get-ServicingStackUpdates -TempFolder $TempFolder
 }
 
+If ($CumulativeUpdate -eq $True)
+{
+    Get-CumulativeUpdates -TempFolder $TempFolder
+}
+
+If ($DotNet35 -eq $True)
+{
+    Get-CumulativeDotNetUpdates -TempFolder $TempFolder
+}
+
 If ($AdobeFlashUpdate -eq $True)
 {
 	Get-AdobeFlashUpdates -TempFolder $TempFolder
 }
 
-If ($Device)
-{
-    Get-LatestDrivers -TempFolder $TempFolder -Device $Device
-}
-
-
-# We always need the VC Runtimes for our devices
-Get-LatestVCRuntimes -TempFolder $TempFolder
-
 
 # Add Servicing Stack / Cumulative updates and necessary drivers to install.wim, winre.wim, and boot.wim
-Update-Win10WIM -SourcePath $SourcePath -SourceName $OSSKU -ServicingStack $ServicingStack -CumulativeUpdate $CumulativeUpdate -DotNet35 $DotNet35 -AdobeFlashUpdate $AdobeFlashUpdate -ImageMountFolder $ImageMountFolder -BootImageMountFolder $BootImageMountFolder -WinREImageMountFolder $WinREImageMountFolder -TempFolder $TempFolder -WindowsKitsInstall $WindowsKitsInstall -MakeUSBMedia $CreateUSB -UpdateBootWIM $UpdateBootWIM
+Update-Win10WIM -SourcePath $SourcePath -SourceName $OSSKU -ServicingStack $ServicingStack -CumulativeUpdate $CumulativeUpdate -DotNet35 $DotNet35 -AdobeFlashUpdate $AdobeFlashUpdate -ImageMountFolder $ImageMountFolder -BootImageMountFolder $BootImageMountFolder -WinREImageMountFolder $WinREImageMountFolder -TempFolder $TempFolder -WindowsKitsInstall $WindowsKitsInstall -UpdateBootWIM $UpdateBootWIM -MakeUSBMedia $CreateUSB -MakeISOMedia $CreateISO
 
 
 # Determine ending time
