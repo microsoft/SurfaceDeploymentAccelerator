@@ -2021,6 +2021,7 @@ Function Update-Win10WIM
             Copy-Item -Path "$WorkingDirPath\UsbImage\CreatePartitions-UEFI_Source.txt" -Destination $BootImageMountFolder
             Copy-Item -Path "$WorkingDirPath\UsbImage\Imaging.ps1" -Destination $BootImageMountFolder
             Copy-Item -Path "$WorkingDirPath\UsbImage\Install.cmd" -Destination $BootImageMountFolder
+            Copy-Item -Path "$WorkingDirPath\UsbImage\surface_devices.xml" -Destination $BootImageMountFolder
             Copy-Item -Path "$WorkingDirPath\UsbImage\startnet.cmd" -Destination "$BootImageMountFolder\Windows\System32" -Force
         }
 
