@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<Surface>
+	<device> 
+		<serial>12345678</serial>
+		<name>ScarfaceSurface</name>
+    </device>
+	<device>
+		<serial>12346789</serial>
+		<name>MySurfaceName</name>
+    </device>
+</Surface>
