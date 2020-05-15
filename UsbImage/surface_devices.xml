@@ -4,9 +4,9 @@
 	<device> 
 		<serial>12345678</serial>
 		<name>ScarfaceSurface</name>
-    </device>
+	</device>
 	<device>
 		<serial>12346789</serial>
 		<name>MySurfaceName</name>
-    </device>
+	</device>
 </Surface>
