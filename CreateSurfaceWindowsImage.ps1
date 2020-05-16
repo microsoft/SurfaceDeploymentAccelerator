@@ -1324,17 +1324,16 @@ Function Get-OSWIMFromISO
 
     Write-Output "Copying $WindowsKitsInstall\Windows Preinstallation Environment\$Arch\en-us\winpe.wim to $DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs\boot.wim..." | Receive-Output -Color White
     Copy-Item -Path "$WindowsKitsInstall\Windows Preinstallation Environment\$Arch\en-us\winpe.wim" -Destination "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs\boot.wim"
-    $BootWIMs = Get-ChildItem -Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs" -filter boot.wim -Recurse
-    ForEach ($BootWIM in $BootWIMs)
+    $SourceBootWIMs = Get-ChildItem -Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs" -filter boot.wim -Recurse
+    ForEach ($SourceBootWIM in $SourceBootWIMs)
     {
-        $TempBootWIM = $BootWIM.FullName
+        $TempBootWIM = $SourceBootWIM.FullName
 
         $PEWIM = Get-WindowsImage -ImagePath $TempBootWIM | Where-Object {$_.ImageName -like "*Windows PE*"}
 
         $ImagePath = $PEWIM.ImagePath
         $ImageIndex = $PEWIM.ImageIndex
         $ImageName = $PEWIM.ImageName
-        $global:WinPEVersion = (& $DISMFile /Get-WimInfo /WimFile:$ImagePath /index:$ImageIndex | Select-String "Version ").ToString().Split(":")[1].Trim()
     }
 
     If ($DotNet35 -eq $true)
