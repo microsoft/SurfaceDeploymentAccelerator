@@ -2021,7 +2021,6 @@ Function Update-Win10WIM
             Copy-Item -Path "$WorkingDirPath\UsbImage\CreatePartitions-UEFI_Source.txt" -Destination $BootImageMountFolder
             Copy-Item -Path "$WorkingDirPath\UsbImage\Imaging.ps1" -Destination $BootImageMountFolder
             Copy-Item -Path "$WorkingDirPath\UsbImage\Install.cmd" -Destination $BootImageMountFolder
-            Copy-Item -Path "$WorkingDirPath\UsbImage\surface_devices.xml" -Destination $BootImageMountFolder
             Copy-Item -Path "$WorkingDirPath\UsbImage\startnet.cmd" -Destination "$BootImageMountFolder\Windows\System32" -Force
         }
 
@@ -2183,6 +2182,8 @@ Function Update-Win10WIM
                     Write-Output "Copying $RefImage to $NewUSBDriveLetter..." | Receive-Output -Color White
                     Copy-Item -Path "$RefImage" -Destination "$NewUSBDriveLetter\Sources" -Recurse
                 }
+				Write-Output "Copying surface_devices.xml to $NewUSBDriveLetter\Sources..." | Receive-Output -Color White
+				Copy-Item -Path "$WorkingDirPath\UsbImage\surface_devices.xml" -Destination $NewUSBDriveLetter\Sources
             }
         }
 
