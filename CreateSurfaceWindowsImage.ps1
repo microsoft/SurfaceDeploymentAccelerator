@@ -166,17 +166,9 @@ Param(
         Mandatory=$False,
         HelpMessage="Path to an extracted driver folder - required if you set UseLocalDriverPath variable to true or script will not find any drivers to inject"
         )]
-        [string]$LocalDriverPath,
-
-
-    [Parameter(
-        Position=19,
-        Mandatory=$False,
-        HelpMessage="WinPE language to be set"
-        )]
-        [ValidateSet('ar-sa', 'bg-bg', 'cs-cz', 'da-dk', 'de-de', 'el-gr', 'en-gb', 'en-us', 'es-es', 'es-mx', 'et-ee', 'fi-fi', 'fr-ca', 'fr-fr', 'he-il', 'hr-hr', 'hu-hu', 'it-it', 'ja-jp', 'ko-kr', 'lt-lt', 'lv-lv', 'nb-no', 'nl-nl', 'pl-pl', 'pt-br', 'pt-pt', 'ro-ro', 'ru-ru', 'sk-sk', 'sl-si', 'sr-latn-rs', 'sv-se', 'th-th', 'tr-tr', 'uk-ua', 'zh-cn', 'zh-tw')]
-        [string]$Language = "en-us"
+        [string]$LocalDriverPath
     )
+
 
 
 Function Receive-Output
@@ -1324,16 +1316,17 @@ Function Get-OSWIMFromISO
 
     Write-Output "Copying $WindowsKitsInstall\Windows Preinstallation Environment\$Arch\en-us\winpe.wim to $DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs\boot.wim..." | Receive-Output -Color White
     Copy-Item -Path "$WindowsKitsInstall\Windows Preinstallation Environment\$Arch\en-us\winpe.wim" -Destination "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs\boot.wim"
-    $SourceBootWIMs = Get-ChildItem -Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs" -filter boot.wim -Recurse
-    ForEach ($SourceBootWIM in $SourceBootWIMs)
+    $BootWIMs = Get-ChildItem -Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs" -filter boot.wim -Recurse
+    ForEach ($BootWIM in $BootWIMs)
     {
-        $TempBootWIM = $SourceBootWIM.FullName
+        $TempBootWIM = $BootWIM.FullName
 
         $PEWIM = Get-WindowsImage -ImagePath $TempBootWIM | Where-Object {$_.ImageName -like "*Windows PE*"}
 
         $ImagePath = $PEWIM.ImagePath
         $ImageIndex = $PEWIM.ImageIndex
         $ImageName = $PEWIM.ImageName
+        $global:WinPEVersion = (& $DISMFile /Get-WimInfo /WimFile:$ImagePath /index:$ImageIndex | Select-String "Version ").ToString().Split(":")[1].Trim()
     }
 
     If ($DotNet35 -eq $true)
@@ -1980,46 +1973,46 @@ Function Update-Win10WIM
 
         Write-Output "Adding WMI..." | Receive-Output -Color White
         Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\WinPE-WMI.cab" | Out-Null
-        Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\$Language\WinPE-WMI_$Language.cab" | Out-Null
+        Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\en-us\WinPE-WMI_en-us.cab" | Out-Null
 
         Write-Output "Adding PE Scripting..." | Receive-Output -Color White
         Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\WinPE-Scripting.cab" | Out-Null
-        Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\$Language\WinPE-Scripting_$Language.cab" | Out-Null
+        Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\en-us\WinPE-Scripting_en-us.cab" | Out-Null
 
         Write-Output "Adding Enhanced Storage..." | Receive-Output -Color White
         Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\WinPE-EnhancedStorage.cab" | Out-Null
-        Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\$Language\WinPE-EnhancedStorage_$Language.cab" | Out-Null
+        Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\en-us\WinPE-EnhancedStorage_en-us.cab" | Out-Null
 
         Write-Output "Adding Bitlocker support..." | Receive-Output -Color White
         Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\WinPE-SecureStartup.cab" | Out-Null
-        Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\$Language\WinPE-SecureStartup_$Language.cab" | Out-Null
+        Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\en-us\WinPE-SecureStartup_en-us.cab" | Out-Null
 
         Write-Output "Adding .NET..." | Receive-Output -Color White
         Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\WinPE-NetFx.cab" | Out-Null
-        Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\$Language\WinPE-NetFx_$Language.cab" | Out-Null
+        Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\en-us\WinPE-NetFx_en-us.cab" | Out-Null
 
         Write-Output "Adding PowerShell..." | Receive-Output -Color White
         Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\WinPE-PowerShell.cab" | Out-Null
-        Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\$Language\WinPE-PowerShell_$Language.cab" | Out-Null
+        Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\en-us\WinPE-PowerShell_en-us.cab" | Out-Null
 
         Write-Output "Adding Storage WMI..." | Receive-Output -Color White
         Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\WinPE-StorageWMI.cab" | Out-Null
-        Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\$Language\WinPE-StorageWMI_$Language.cab" | Out-Null
+        Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\en-us\WinPE-StorageWMI_en-us.cab" | Out-Null
 
         Write-Output "Adding DISM support..." | Receive-Output -Color White
         Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\WinPE-DismCmdlets.cab" | Out-Null
-        Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\$Language\WinPE-DismCmdlets_$Language.cab" | Out-Null
+        Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\en-us\WinPE-DismCmdlets_en-us.cab" | Out-Null
 
         Write-Output "Adding Secure Boot support..." | Receive-Output -Color White
         Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\WinPE-SecureBootCmdlets.cab" | Out-Null
 
         Write-Output "Adding Secure Startup support..." | Receive-Output -Color White
         Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\WinPE-DismCmdlets.cab" | Out-Null
-        Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\$Language\WinPE-DismCmdlets_$Language.cab" | Out-Null
+        Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\en-us\WinPE-DismCmdlets_en-us.cab" | Out-Null
 
         Write-Output "Adding WinRE support..." | Receive-Output -Color White
         Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\WinPE-WinReCfg.cab" | Out-Null
-        Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\$Language\WinPE-WinReCfg_$Language.cab" | Out-Null
+        Add-WindowsPackage -Path $BootImageMountFolder -PackagePath "$WinPEOCPath\en-us\WinPE-WinReCfg_en-us.cab" | Out-Null
 
 
         If (($MakeUSBMedia) -or ($MakeISOMedia))
@@ -2190,8 +2183,6 @@ Function Update-Win10WIM
                     Write-Output "Copying $RefImage to $NewUSBDriveLetter..." | Receive-Output -Color White
                     Copy-Item -Path "$RefImage" -Destination "$NewUSBDriveLetter\Sources" -Recurse
                 }
-				Write-Output "Copying surface_devices.xml to $NewUSBDriveLetter\Sources..." | Receive-Output -Color White
-				Copy-Item -Path "$WorkingDirPath\UsbImage\surface_devices.xml" -Destination $NewUSBDriveLetter\Sources
             }
         }
 
@@ -2320,7 +2311,6 @@ Write-Output "  Cumulative Update:          $CumulativeUpdate" | Receive-Output 
 Write-Output "  Cumulative DotNet Updates:  $CumulativeUpdate" | Receive-Output -Color White
 Write-Output "  Adobe Flash Player Updates: $AdobeFlashUpdate" | Receive-Output -Color White
 Write-Output "  Device drivers:             $Device" | Receive-Output -Color White
-Write-Output "  WinPE Language:             $Language" | Receive-Output -Color White
 If ($UseLocalDriverPath -eq $True)
 {
     Write-Output "  Use Local driver path:      $LocalDriverPath" | Receive-Output -Color White
