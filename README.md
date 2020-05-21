@@ -5,7 +5,7 @@ Surface Deployment Accelerator (SDA) is a script-driven tool to create Windows i
 Please use this GitHub Repos issue tracking capability to raise issues or feature requests.
 
 # How to use
-This tool is run via executiong "CreateSurfaceWindowsImage.ps1" as an administrator, and requires access to a Windows ISO file to provide the image to manipulate.  If driver or Windows updates are desired, internet access is required to download.  The script uses the Windows deployment tools from the ADK, so if the latest ADK is not already installed, it will be downloaded and installed during script execution.
+This tool is run via executing "CreateSurfaceWindowsImage.ps1" as an administrator, and requires access to a Windows ISO file to provide the image to manipulate.  If driver or Windows updates are desired, internet access is required to download.  The script uses the Windows deployment tools from the ADK, so if the latest ADK is not already installed, it will be downloaded and installed during script execution.
 
 Example:
 
