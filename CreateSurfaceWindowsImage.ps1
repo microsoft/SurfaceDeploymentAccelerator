@@ -296,7 +296,7 @@ Function GetInstalledAppStatus
     )
 
 
-    $OSArch = Get-WmiObject -Class Win32_OperatingSystem
+    $OSArch = Get-CimInstance -Class Win32_OperatingSystem
 
     If ($OSArch.OSArchitecture -eq "64-bit")
     {
@@ -344,7 +344,7 @@ Function PrereqCheck
     CheckIfRunAsAdmin
 
     # Windows Version Check
-    $OSCaption = (Get-WmiObject win32_operatingsystem).caption
+    $OSCaption = (Get-CimInstance win32_operatingsystem).caption
     If ($OSCaption -like "Microsoft Windows 10*" -or $OSCaption -like "Microsoft Windows Server 2016*" -or $OSCaption -like "Microsoft Windows Server 2019*")
     {
         # All OK
