@@ -49,7 +49,7 @@ Function New-RegKey
 
 Function ClearTPM
 {
-    $TPM = Get-CimInstance -Class "Win32_Tpm" -Namespace "ROOT\CIMV2\Security\MicrosoftTpm"
+    $TPM = Get-CimInstance -ClassName "Win32_Tpm" -Namespace "ROOT\CIMV2\Security\MicrosoftTpm"
 
     Write-Output "Clearing TPM ownership....."
     $ClearRequest = $TPM.SetPhysicalPresenceRequest(14) | Out-Null
@@ -176,7 +176,7 @@ Function Get-DiskIndex
     # Set Disk to image to
     Update-StorageProviderCache -DiscoveryLevel Full | Out-Null
 
-    $SystemInformation = Get-CimInstance -Namespace root\wmi -Class MS_SystemInformation
+    $SystemInformation = Get-CimInstance -Namespace root\wmi -ClassName MS_SystemInformation
     $Product = $SystemInformation.SystemSKU
     $Disks = Get-Disk | Where-Object { $_.BusType -ne "USB"}
 
@@ -319,7 +319,7 @@ If ($NTCurrentVersion)
 
 Write-Output ""
 Write-Output "- Hardware Information"
-$SystemInformation = (Get-CimInstance -Namespace root\wmi -Class MS_SystemInformation)
+$SystemInformation = (Get-CimInstance -Namespace root\wmi -ClassName MS_SystemInformation)
 
 If ($SystemInformation)
 {
