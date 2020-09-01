@@ -9,7 +9,7 @@
 # form of the Sample Code, provided that You agree: (i) to not use Our name, logo, or trademarks to 
 # market Your software product in which the Sample Code is embedded; (ii) to include a valid copyright 
 # notice on Your software product in which the Sample Code is embedded; and (iii) to indemnify, hold 
-# harmless, and defend Us and Our suppliers from and against any claims or lawsuits, including attorneys’ 
+# harmless, and defend Us and Our suppliers from and against any claims or lawsuits, including attorneys 
 # fees, that arise or result from the use or distribution of the Sample Code.
  
 # This sample script is not supported under any Microsoft standard support program or service. 
@@ -218,7 +218,7 @@
                 <Driver name="surfacesoftwareservicingdriver.inf"/>
             </Drivers>
         </SurfaceLaptop2>
-        <SurfaceLaptop3>
+        <SurfaceLaptop3Intel>
             <Drivers>
                 <Driver name="heci.inf"/>
                 <Driver name="ialpss2_gpio2_icl.inf"/>
@@ -240,7 +240,7 @@
                 <Driver name="surfaceservicenulldriver.inf"/>
                 <Driver name="surfacestoragefwupdate.inf"/>
             </Drivers>
-        </SurfaceLaptop3>
+        </SurfaceLaptop3Intel>
         <SurfaceBook>
             <Drivers>
                 <Driver name="64gh4463.inf"/>
@@ -360,7 +360,7 @@
             <Drivers>
                 <Driver name="commonsystem.inf"/>
                 <Driver name="heci.inf"/>
-                <Driver name="ialpss2_gpio2_icl.inf" />
+                <Driver name="ialpss2_gpio2_icl.inf"/>
                 <Driver name="ialpss2_i2c_icl.inf"/>
                 <Driver name="ialpss2_spi_icl.inf"/>
                 <Driver name="ialpss2_uart2_icl.inf"/>
@@ -432,5 +432,25 @@
             <Drivers>
             </Drivers>
         </SurfaceGo2>
+        <SurfaceHub2>
+            <Drivers>
+                <Driver name="commonsystem.inf"/>
+                <Driver name="dptf_acpi.inf"/>
+                <Driver name="dptf_cpu.inf"/>
+                <Driver name="esif_manager.inf"/>
+                <Driver name="heci.inf"/>
+                <Driver name="ialpss2_gpio2_skl.inf"/>
+                <Driver name="ialpss2_i2c_skl.inf"/>
+                <Driver name="ialpss2_spi_skl.inf"/>
+                <Driver name="ialpss2_uart2_skl.inf"/>
+                <Driver name="kabylakesystem.inf"/>
+                <Driver name="sunrisepoint-lpsdhost.inf"/>
+                <Driver name="sunrisepoint-lpsystem.inf"/>
+                <Driver name="sunrisepoint-lpsystemnorthpeak.inf"/>
+                <Driver name="sunrisepoint-lpsystemthermal.inf"/>
+                <Driver name="surfaceacpinotifydriver.inf"/>
+                <Driver name="surfaceserialhubdriver.inf"/>
+            </Drivers>
+        </SurfaceHub2>
     </Devices>
 </Surface>

@@ -2,21 +2,27 @@
 .SYNOPSIS
     This script partitions the disk and applies a WIM or SWM files and sets recovery.
 
-    // *************
-    // *  CAUTION  *
-    // *************
-
-    Please review this script THOROUGHLY before applying, and disable changes below as necessary to suit your current environment.
-
-    This script is provided AS-IS - usage of this source assumes that you are at the very least familiar with PowerShell, and the
-    tools used to create and debug this script.
-
-    In other words, if you break it, you get to keep the pieces.
-    
 .NOTES
     Author:       Microsoft
-    Last Update:  6th May 2020
-    Version:      1.1.0
+    Last Update:  31st August 2020
+    Version:      1.2.5.3
+
+    Version 1.2.5.3
+    - Match master package version
+
+    Version 1.2.3
+    - Changed all Get-WmiObject calls with Get-CimInstance calls to be more compatible with PowerShell Core
+    
+    Version 1.2.2
+    - No changes
+
+    Version 1.2.1
+    - Performance improvements
+    - Removed forced Bitlocker encryption - causes issues on non-Surface devices
+
+    Version 1.2.0
+    - Added support for running from NVME USB-attached drives
+    - Bugfixes
 
     Version 1.1.0
     - Added support for running in a VM
@@ -27,7 +33,11 @@
 #>
 
 
+
+$SDAVersion = "1.2.5.3"
 cls
+
+
 
 Function New-RegKey
 {
@@ -176,7 +186,7 @@ Function Get-DiskIndex
     # Set Disk to image to
     Update-StorageProviderCache -DiscoveryLevel Full | Out-Null
 
-    $SystemInformation = Get-CimInstance -Namespace root\wmi -ClassName MS_SystemInformation
+    $SystemInformation = Get-CimInstance -ClassName MS_SystemInformation -Namespace root\wmi
     $Product = $SystemInformation.SystemSKU
     $Disks = Get-Disk | Where-Object { $_.BusType -ne "USB"}
 
@@ -277,13 +287,16 @@ If ($ExecutionContext.SessionState.LanguageMode -eq "FullLanguage")
 $scriptPath = Split-Path -parent $MyInvocation.MyCommand.Definition
 
 
-
+Write-Output "SDA version:  $SDAVersion"
+Start-Sleep 2
+Write-Output ""
+Write-Output ""
 Write-Output "********************"
 Write-Output "  OS IMAGE INSTALL  "
 Write-Output "********************"
 
 $UEFIVer = ($(& wmic bios get SMBIOSBIOSVersion /format:table)[2])
-Write-Output "- UEFI Information: $UEFIVer"
+Write-Output "- UEFI Information:   $UEFIVer"
 Write-Output ""
 Write-Output "- WinPE Information"
 $RegPath = "Registry::HKEY_LOCAL_MACHINE\Software"
@@ -319,7 +332,7 @@ If ($NTCurrentVersion)
 
 Write-Output ""
 Write-Output "- Hardware Information"
-$SystemInformation = (Get-CimInstance -Namespace root\wmi -ClassName MS_SystemInformation)
+$SystemInformation = (Get-CimInstance -ClassName MS_SystemInformation -Namespace root\wmi)
 
 If ($SystemInformation)
 {
@@ -346,7 +359,6 @@ $SourceDrive = Get-ChildItem -Path "$DriveLetter" -Recurse | Where-Object { $_.N
 
 If ($SourceDrive)
 {
-    $Folder = Get-ChildItem -Path "$DriveLetter" -Recurse | Where-Object { $_.PSIsContainer -and $_.Name -like "Sources*" }
     $DiskPartScript = Get-ChildItem -Path "X:\" -Recurse | Where-Object { $_.Name -eq "CreatePartitions-UEFI.txt" }
     $DiskPartScriptSource = Get-ChildItem -Path "X:\" -Recurse | Where-Object { $_.Name -eq "CreatePartitions-UEFI_Source.txt" }
     If ($DiskPartScript)
@@ -358,7 +370,7 @@ If ($SourceDrive)
 
 Write-Output "Finding all attached drives with recognized filesystems..."
 Write-Output ""
-$Drives = Get-PSDrive | Where-Object { $_.Provider -like "*FileSystem*" }
+$Drives = Get-CimInstance -ClassName Win32_LogicalDisk
 If (!($Drives))
 {
     Write-Output "No drives found, exiting."
@@ -376,10 +388,27 @@ Else
 
 ForEach ($Drive in $Drives)
 {
-    $TempDrive = $Drive.Root
-    Write-Output "Checking drive $TempDrive for WIM/SWM files..."
-    $WIMFile = Get-ChildItem -Path $TempDrive -Recurse | Where-Object { $_.Name -like "*install*.wim" }
-    $SWMFile = Get-ChildItem -Path $TempDrive -Recurse | Where-Object { $_.Name -like "*install*--Split.swm" }
+    $TempDrive = $Drive.DeviceID
+    $TempPath = "$TempDrive\Sources"
+    If (($Drive.Description -like "*Disc*") -and (!($Drive.FileSystem)))
+    {
+        # Drive does not have an ISO/disc inserted, skip
+    }
+    Else
+    {
+        If (!(Test-Path "$TempPath"))
+        {
+            # No \Sources folder found, thus no WIM/SWMs should be on this volume, skipping
+        }
+        Else
+        {
+            Write-Output "Checking drive $TempDrive for WIM/SWM files..."
+            $WIMFile = Get-ChildItem -Path $TempPath -Recurse | Where-Object { $_.Name -like "*install*.wim" }
+            $SWMFile = Get-ChildItem -Path $TempPath -Recurse | Where-Object { $_.Name -like "*install*--Split.swm" }
+        }
+        
+    }
+
     If ($WIMFile)
     {
         $WIMFound = $true
@@ -398,18 +427,11 @@ ForEach ($Drive in $Drives)
         $SWMFilePattern = $SWMFile.DirectoryName + "\" + $SWMFile.BaseName + '*.swm'
         Break
     }
-    Else
-    {
-        Write-Output "Could not find any WIM files in $TempDrive, continuing..."
-        Write-Output ""
-    }
 }
 
 If ($WIMFound -eq $false)
 {
     Write-Output "WIM/SWM file(s) not found.  Exiting..."
-    Write-Output ""
-    Write-Output "WIMFound:  $WIMFound"
     Write-Output ""
     Exit
 }
@@ -424,21 +446,23 @@ Get-Content -Path $DiskPartScriptSourcePath | Add-Content -Path $DiskPartScriptP
 & $diskpart /s $DiskPartScriptPath
 
 
-# Enable Bitlocker
-If ("$($SystemInformation.Family)" -like "*Virtual*")
+<#
+# This isn't necessary on Modern Standby devices like Surface, but keeping in for custom device/custom deployment work
+Enable Bitlocker
+If ("$($SystemInformation.SystemFamily)" -like "*Virtual*")
 {
-    # VM, don't try to clear TPM
+    # VM, don't try to enable Bitlocker
 }
 Else
 {
-    ClearTpm
-    Start-Sleep 2
-    Write-Output "Enabling XTS-AES 256Bit Bitlocker encryption"
+    #ClearTPM
+    Write-Output "Enabling Bitlocker encryption"
     EnableBitlocker
     & $managebde -on W: -UsedSpaceOnly
     Write-Output ""
     Write-Output ""
 }
+#>
 
 
 # Apply image

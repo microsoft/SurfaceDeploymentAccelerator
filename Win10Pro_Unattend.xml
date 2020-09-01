@@ -1,161 +1,111 @@
 <?xml version="1.0" encoding="utf-8"?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend">
-    <settings pass="windowsPE">
-        <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-            <UserData>
-                <ProductKey></ProductKey>
-            </UserData>
-        </component>
-    </settings>
     <settings pass="specialize">
         <component name="Microsoft-Windows-Deployment" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
             <RunSynchronous>
                 <RunSynchronousCommand wcm:action="add">
                     <Order>1</Order>
+                    <Description>PowerShell Execution Policy</Description>
+                    <Path>powershell.exe -noprofile -command &quot;Set-ExecutionPolicy Restricted -Force&quot;</Path>
+                </RunSynchronousCommand>
+                <RunSynchronousCommand wcm:action="add">
+                    <Order>2</Order>
                     <Description>EnableAdmin</Description>
                     <Path>cmd /c net user Administrator /active:yes</Path>
                 </RunSynchronousCommand>
                 <RunSynchronousCommand wcm:action="add">
-                    <Order>2</Order>
-                    <Description>Enable use of Bitlocker authentication requiring preboot keyboard input on slates</Description>
-                    <Path>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\FVE" /v OSEnablePrebootInputProtectorsOnSlates /d 1 /t REG_DWORD /f</Path>
-                </RunSynchronousCommand>
-                <RunSynchronousCommand wcm:action="add">
                     <Order>3</Order>
-                    <Description>Require Additional Authentication at startup for Bitlocker</Description>
-                    <Path>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\FVE" /v UseAdvancedStartup /d 1 /t REG_DWORD /f</Path>
+                    <Description>Enable use of Bitlocker authentication requiring preboot keyboard input on slates</Description>
+                    <Path>cmd /c reg add HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE /v OSEnablePrebootInputProtectorsOnSlates /d 1 /t REG_DWORD /f</Path>
                 </RunSynchronousCommand>
                 <RunSynchronousCommand wcm:action="add">
                     <Order>4</Order>
-                    <Description>Allow TPM</Description>
-                    <Path>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\FVE" /v UseTPM /d 2 /t REG_DWORD /f</Path>
+                    <Description>Require Additional Authentication at startup for Bitlocker</Description>
+                    <Path>cmd /c reg add HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE /v UseAdvancedStartup /d 1 /t REG_DWORD /f</Path>
                 </RunSynchronousCommand>
                 <RunSynchronousCommand wcm:action="add">
                     <Order>5</Order>
-                    <Description>Allow Startup Key with TPM</Description>
-                    <Path>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\FVE" /v UseTPMKey /d 2 /t REG_DWORD /f</Path>
+                    <Description>Allow TPM</Description>
+                    <Path>cmd /c reg add HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE /v UseTPM /d 2 /t REG_DWORD /f</Path>
                 </RunSynchronousCommand>
                 <RunSynchronousCommand wcm:action="add">
                     <Order>6</Order>
-                    <Description>Allow startup key and PIN with TPM</Description>
-                    <Path>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\FVE" /v UseTPMKeyPIN /d 2 /t REG_DWORD /f</Path>
+                    <Description>Allow Startup Key with TPM</Description>
+                    <Path>cmd /c reg add HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE /v UseTPMKey /d 2 /t REG_DWORD /f</Path>
                 </RunSynchronousCommand>
                 <RunSynchronousCommand wcm:action="add">
                     <Order>7</Order>
-                    <Description>Allow startup PIN with TPM</Description>
-                    <Path>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\FVE" /v UseTPMPIN /d 2 /t REG_DWORD /f</Path>
+                    <Description>Allow startup key and PIN with TPM</Description>
+                    <Path>cmd /c reg add HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE /v UseTPMKeyPIN /d 2 /t REG_DWORD /f</Path>
                 </RunSynchronousCommand>
                 <RunSynchronousCommand wcm:action="add">
                     <Order>8</Order>
-                    <Description>Use XTS-AES-256 Bitlocker encryption algorithm for OS drives</Description>
-                    <Path>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\FVE" /v EncryptionMethodWithXtsOs /d 7 /t REG_DWORD /f</Path>
-                </RunSynchronousCommand>
-                <RunSynchronousCommand wcm:action="add">
-                    <Order>9</Order>
-                    <Description>Use XTS-AES-256 Bitlocker encryption algorithm for fixed non-OS drives</Description>
-                    <Path>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\FVE" /v EncryptionMethodWithXtsFdv /d 7 /t REG_DWORD /f</Path>
-                </RunSynchronousCommand>
-                <RunSynchronousCommand wcm:action="add">
-                    <Order>10</Order>
-                    <Description>Used space only Bitlocker encryption</Description>
-                    <Path>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\FVE" /v OSEncryptionType /d 2 /t REG_DWORD /f</Path>
+                    <Description>Allow startup PIN with TPM</Description>
+                    <Path>cmd /c reg add HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE /v UseTPMPIN /d 2 /t REG_DWORD /f</Path>
                 </RunSynchronousCommand>
                 <RunSynchronousCommand wcm:action="add">
                     <Order>11</Order>
                     <Description>Enable Virtualization-based Security features</Description>
-                    <Path>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v EnableVirtualizationBasedSecurity /d 1 /t REG_DWORD /f</Path>
+                    <Path>cmd /c reg add HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\DeviceGuard /v EnableVirtualizationBasedSecurity /d 1 /t REG_DWORD /f</Path>
                 </RunSynchronousCommand>
                 <RunSynchronousCommand wcm:action="add">
                     <Order>12</Order>
                     <Description>Require Secure Boot with DMA for Virtualization-based Security features</Description>
-                    <Path>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v RequirePlatformSecurityFeatures /d 3 /t REG_DWORD /f</Path>
+                    <Path>cmd /c reg add HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\DeviceGuard /v RequirePlatformSecurityFeatures /d 3 /t REG_DWORD /f</Path>
                 </RunSynchronousCommand>
                 <RunSynchronousCommand wcm:action="add">
                     <Order>13</Order>
                     <Description>Enable Virtualization-based Security with UEFI lock</Description>
-                    <Path>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v Locked /d 1 /t REG_DWORD /f</Path>
+                    <Path>cmd /c reg add HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\DeviceGuard /v Locked /d 1 /t REG_DWORD /f</Path>
                 </RunSynchronousCommand>
                 <RunSynchronousCommand wcm:action="add">
                     <Order>14</Order>
                     <Description>Protect Code Integrity policies using Virtualization-based Security with UEFI lock</Description>
-                    <Path>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" /v Enabled /d 1 /t REG_DWORD /f</Path>
+                    <Path>cmd /c reg add HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity /v Enabled /d 1 /t REG_DWORD /f</Path>
                 </RunSynchronousCommand>
                 <RunSynchronousCommand wcm:action="add">
                     <Order>15</Order>
                     <Description>Protect Code Integrity policies using Virtualization-based Security with UEFI lock</Description>
-                    <Path>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" /v Locked /d 1 /t REG_DWORD /f</Path>
+                    <Path>cmd /c reg add HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity /v Locked /d 1 /t REG_DWORD /f</Path>
                 </RunSynchronousCommand>
                 <RunSynchronousCommand wcm:action="add">
                     <Order>16</Order>
                     <Description>Protect Credentials using Virtualization-based Security</Description>
-                    <Path>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\CredentialGuard" /v Enabled /d 1 /t REG_DWORD /f</Path>
+                    <Path>cmd /c reg add HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\CredentialGuard /v Enabled /d 1 /t REG_DWORD /f</Path>
                 </RunSynchronousCommand>
                 <RunSynchronousCommand wcm:action="add">
                     <Order>17</Order>
                     <Description>Enable Credential Guard with UEFI lock</Description>
-                    <Path>reg.exe add "HKLM\System\CurrentControlSet\Control\Lsa" /v LsaCfgFlags /d 1 /t REG_DWORD /f</Path>
+                    <Path>cmd /c reg add HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Lsa /v LsaCfgFlags /d 1 /t REG_DWORD /f</Path>
                 </RunSynchronousCommand>
                 <RunSynchronousCommand wcm:action="add">
                     <Order>18</Order>
-                    <Description>Manage mitigations for CVE-2018-3639 (Speculative Store Bypass), CVE-2017-5715 (Spectre Variant 2), and CVE-2017-5754 (Meltdown)</Description>
-                    <Path>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v FeatureSettingsOverride /t REG_DWORD /d 8 /f</Path>
+                    <Description>Spectre/Meltdown mitigation</Description>
+                    <Path>cmd /c reg add &quot;HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management&quot; /v FeatureSettingsOverride /t REG_DWORD /d 72 /f</Path>
                 </RunSynchronousCommand>
                 <RunSynchronousCommand wcm:action="add">
                     <Order>19</Order>
-                    <Description>Manage mitigations for CVE-2018-3639 (Speculative Store Bypass), CVE-2017-5715 (Spectre Variant 2), and CVE-2017-5754 (Meltdown)</Description>
-                    <Path>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v FeatureSettingsOverrideMask /t REG_DWORD /d 3 /f</Path>
+                    <Description>Spectre/Meltdown mitigation</Description>
+                    <Path>cmd /c reg add &quot;HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management&quot; /v FeatureSettingsOverrideMask /t REG_DWORD /d 3 /f</Path>
                 </RunSynchronousCommand>
                 <RunSynchronousCommand wcm:action="add">
                     <Order>20</Order>
-                    <Description>Manage mitigations for CVE-2018-3639 (Speculative Store Bypass), CVE-2017-5715 (Spectre Variant 2), and CVE-2017-5754 (Meltdown)</Description>
-                    <Path>reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization" /v MinVmVersionForCpuBasedMitigations /t REG_SZ /d "1.0" /f</Path>
+                    <Description>Spectre/Meltdown mitigation</Description>
+                    <Path>cmd /c reg add HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization /v MinVmVersionForCpuBasedMitigations /t REG_SZ /d "1.0" /f</Path>
                 </RunSynchronousCommand>
                 <RunSynchronousCommand wcm:action="add">
-                    <Order>21</Order>
-                    <Description>Mitigating Spectre variant 2 with Retpoline</Description>
-                    <Path>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v FeatureSettingsOverride /t REG_DWORD /d 0x400 /f</Path>
-                </RunSynchronousCommand>
-                <RunSynchronousCommand wcm:action="add">
-                    <Order>22</Order>
-                    <Description>Mitigating Spectre variant 2 with Retpoline</Description>
-                    <Path>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v FeatureSettingsOverrideMask /t REG_DWORD /d 0x400 /f</Path>
-                </RunSynchronousCommand>
-                <RunSynchronousCommand wcm:action="add">
-                    <Order>24</Order>
-                    <Description>Install VC 2013 x86 runtimes</Description>
-                    <Path>C:\Windows\Temp\VCRuntimes\2013\vcredist_x86.exe /install /passive /norestart</Path>
-                </RunSynchronousCommand>
-                <RunSynchronousCommand wcm:action="add">
-                    <Order>25</Order>
-                    <Description>Install VC 2013 x64 runtimes</Description>
-                    <Path>C:\Windows\Temp\VCRuntimes\2013\vcredist_x64.exe /install /passive /norestart</Path>
-                </RunSynchronousCommand>
-                <RunSynchronousCommand wcm:action="add">
-                    <Order>26</Order>
-                    <Description>Install VC 2015 x86 runtimes</Description>
-                    <Path>C:\Windows\Temp\VCRuntimes\2015\vc_redist.x86.exe /install /passive /norestart</Path>
-                </RunSynchronousCommand>
-                <RunSynchronousCommand wcm:action="add">
-                    <Order>27</Order>
-                    <Description>Install VC 2015 x64 runtimes</Description>
-                    <Path>C:\Windows\Temp\VCRuntimes\2015\vc_redist.x64.exe /install /passive /norestart</Path>
-                </RunSynchronousCommand>
-                <RunSynchronousCommand wcm:action="add">
-                    <Order>28</Order>
-                    <Description>Install VC 2017 x86 runtimes</Description>
-                    <Path>C:\Windows\Temp\VCRuntimes\2017\vc_redist.x86.exe /install /passive /norestart</Path>
-                </RunSynchronousCommand>
-                <RunSynchronousCommand wcm:action="add">
-                    <Order>29</Order>
-                    <Description>Install VC 2017 x64 runtimes</Description>
-                    <Path>C:\Windows\Temp\VCRuntimes\2017\vc_redist.x64.exe /install /passive /norestart</Path>
-                </RunSynchronousCommand>
-                <RunSynchronousCommand wcm:action="add">
-                    <Order>30</Order>
+                    <Order>23</Order>
                     <Description>Disable Microsoft Edge first-run popup</Description>
-                    <Path>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\MicrosoftEdge\Main" /v PreventFirstRunPage /d 1 /t REG_DWORD /f</Path>
+                    <Path>cmd /c reg add HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\MicrosoftEdge\Main /v PreventFirstRunPage /d 1 /t REG_DWORD /f</Path>
                 </RunSynchronousCommand>
             </RunSynchronous>
         </component>
     </settings>
+    <settings pass="generalize">
+        <component name="Microsoft-Windows-PnpSysprep" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <DoNotCleanUpNonPresentDevices>true</DoNotCleanUpNonPresentDevices>
+            <PersistAllDeviceInstalls>true</PersistAllDeviceInstalls>
+        </component>
+    </settings>
+    <cpi:offlineImage cpi:source="wim:d:/temp/pro/10.0.18363/x64/sourcewims/install.wim#Windows 10 Pro" xmlns:cpi="urn:schemas-microsoft-com:cpi" />
 </unattend>

@@ -1,0 +1,14 @@
+<Configuration>
+    <Add OfficeClientEdition="64" Channel="Monthly">
+        <Product ID="O365ProPlusRetail">
+            <Language ID="MatchOS" />
+            <ExcludeApp ID="Access" />
+            <ExcludeApp ID="Groove" />
+            <ExcludeApp ID="Lync" />
+            <ExcludeApp ID="Publisher" />
+            <ExcludeApp ID="Bing" />
+        </Product>
+    </Add>
+    <Display Level="None" AcceptEULA="TRUE" />
+    <Logging Level="Standard" Path="%TEMP%" />
+</Configuration>
