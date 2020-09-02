@@ -1409,7 +1409,7 @@ Function Get-Office365
     If (!(Test-Path "$Office365Path\setup.exe"))
     {
         #File not downloaded, bail
-        Write-Output "Office offline setup file download appears to have failed.  Exiting..." | Receive-Output -Color Red -BGColor Black -BGColor Black -LogLevel 3 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Write-Output "Office offline setup file download appears to have failed.  Exiting..." | Receive-Output -Color Red -BGColor Black -LogLevel 3 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
         Exit
     }
     Else
