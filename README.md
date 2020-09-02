@@ -7,6 +7,9 @@ Please use this GitHub Repos issue tracking capability to raise issues or featur
 
 
 # Prerequisites
+**************************************************************************************************************************************************************************************************************************************************************************************************************
+ - If you download the contents of this repository as a ZIP file from github.com on a Windows system, please right-click on the downloaded .zip file and select Properties, then check the "Unblock" box, and then click OK.  ONLY THEN IS IT SAFE TO UNZIP THE FILE - If you do not do this, your deployments *will* fail.
+**************************************************************************************************************************************************************************************************************************************************************************************************************
  - Windows 10 2004 or newer environment to run the script.
  - Internet Explorer "first run experience" must have been completed in environment where script is run (you must run Internet Explorer once, otherwise driver/firmware and other downloads *will* fail and the script will throw errors indicating you have not run IE once in that environment before downloads will work properly).
  - Internet access from machine/environment where script is run (to download drivers and Office 365 - internet access is not required to use the image to (re)image devices, but is *strongly* recommended during that process as well).
@@ -37,7 +40,7 @@ Please use this GitHub Repos issue tracking capability to raise issues or featur
 
 # Known issues
 **************************************************************************************************************************************************************************************************************************************************************************************************************
- - If you download this repository as a ZIP file from github.com on a Windows system, please right-click on the downloaded .zip file and select Properties, then check the "Unblock" box, and then click OK.  ONLY THEN IS IT SAFE TO UNZIP THE FILE - If you do not do this, your deployments *will* fail.
+ - If you download the contents of this repository as a ZIP file from github.com on a Windows system, please right-click on the downloaded .zip file and select Properties, then check the "Unblock" box, and then click OK.  ONLY THEN IS IT SAFE TO UNZIP THE FILE - If you do not do this, your deployments *will* fail.
 **************************************************************************************************************************************************************************************************************************************************************************************************************
 
 ***********************************************************************************************************************************************************************
