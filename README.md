@@ -37,11 +37,11 @@ Please use this GitHub Repos issue tracking capability to raise issues or featur
 
 # Known issues
 **************************************************************************************************************************************************************************************************************************************************************************************************************
-* - If you download this repository as a ZIP file from github.com on a Windows system, please right-click on the downloaded .zip file and select Properties, then check the "Unblock" box, and then click OK.  ONLY THEN IS IT SAFE TO UNZIP THE FILE - If you do not do this, your deployments *will* fail. *
+ - If you download this repository as a ZIP file from github.com on a Windows system, please right-click on the downloaded .zip file and select Properties, then check the "Unblock" box, and then click OK.  ONLY THEN IS IT SAFE TO UNZIP THE FILE - If you do not do this, your deployments *will* fail.
 **************************************************************************************************************************************************************************************************************************************************************************************************************
 
 ***********************************************************************************************************************************************************************
-* - If your PowerShell execution policy isn't "RemoteSigned" or less restrictive, the scripts will not execute and you will not be able to create an image to deploy. *
+ - If your PowerShell execution policy isn't "RemoteSigned" or less restrictive, the scripts will not execute and you will not be able to create an image to deploy.
 ***********************************************************************************************************************************************************************
 
  - If an image fails to create, files may be held open in %temp%\Mount.  The script will detect files in this location on initial execution and fail if anything is found.  You will need to manually dismount the image (dism /unmount-wim /mountdir:%temp%\Mount\<folder>) to make certain that all folders under this location are unmounted.  Any failures to unmount will require manual cleanup before the script will execute successfully again.
