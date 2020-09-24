@@ -124,7 +124,7 @@
             <FirstLogonCommands>
                 <SynchronousCommand>
                     <Order>1</Order>
-                    <Description>Customize Poster</Description>
+                    <Description>Customize Device</Description>
                     <CommandLine><![CDATA[%ProgramFiles%\Surface\PosterCustomization.cmd]]></CommandLine>
                 </SynchronousCommand>
                 <SynchronousCommand>
