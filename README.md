@@ -78,7 +78,7 @@ The parameters that are supported to configure for the script are as follows:
 
  -Office365:                  Download and install the latest monthly C2R installation of Office 365, True or False.  True is the default.
 
- -Device:                     Enter Surface device type to download and inject latest drivers for.  Possible values: SurfacePro4, SurfacePro5, SurfacePro6, SurfacePro7, SurfaceLaptop, SurfaceLaptop2, SurfaceLaptop3, SurfaceBook, SurfaceBook2, SurfaceStudio, SurfaceStudio2, SurfaceGo, SurfaceGoLTE, and SurfaceHub2.  If this parameter is not specified, SurfacePro7 is used.
+ -Device:                     Enter Surface device type to download and inject latest drivers for.  Possible values: SurfacePro4, SurfacePro5, SurfacePro6, SurfacePro7, SurfaceLaptop, SurfaceLaptop2, SurfaceLaptop3, SurfaceBook, SurfaceBook2, SurfaceBook3, SurfaceStudio, SurfaceStudio2, SurfaceGo, SurfaceGoLTE, SurfaceGo2, and SurfaceHub2.  If this parameter is not specified, SurfacePro7 is used.
 
  -CreateUSB:                  Create bootable USB installation when finished, True or False.  True is the default.
 
