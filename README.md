@@ -46,7 +46,6 @@ Please use this GitHub Repos issue tracking capability to raise issues or featur
 ***********************************************************************************************************************************************************************
  - If your PowerShell execution policy isn't "RemoteSigned" or less restrictive, the scripts will not execute and you will not be able to create an image to deploy.
 ***********************************************************************************************************************************************************************
-
  - If an image fails to create, files may be held open in %temp%\Mount.  The script will detect files in this location on initial execution and fail if anything is found.  You will need to manually dismount the image (dism /unmount-wim /mountdir:%temp%\Mount\<folder>) to make certain that all folders under this location are unmounted.  Any failures to unmount will require manual cleanup before the script will execute successfully again.
  - If the path to the SDA folder itself, the Output folder parameter, or the LocalDriverPath parameter (if UseLocalDriverPath is set to $True) contains spaces, the script will abort.  Please make sure paths do not contain spaces.
  - Internet Explorer must be installed on the device used to create images, and first run wizard must be completed (you must successfully start Internet Explorer once) or file downloads may fail.
@@ -63,21 +62,21 @@ Please use this GitHub Repos issue tracking capability to raise issues or featur
 The parameters that are supported to configure for the script are as follows:
 
  -ISO:                        Path to a Windows ISO file to use as the imaging source. (required)
-
+ 
  -DestinationFolder:          The folder used to place the resulting image files once complete. (required)
-
+ 
  -DotNet35:                   Install .NET 3.5 in the image, True or False.  True is the default.
-
+ 
  -ServicingStack:             Download/inject latest servicing stack update, True or False.  True is the default.
-
+ 
  -CumulativeUpdate:           Download/inject latest cumulative update, True or False.  True is the default.
-
+ 
  -CumulativeDotNetUpdate:     Download/inject latest cumulative update, True or False.  True is the default.
-
+ 
  -AdobeFlashUpdate:           Include latest Adobe Flash Player Security update, True or False.  True is the default.
-
+ 
  -Office365:                  Download and install the latest monthly C2R installation of Office 365, True or False.  True is the default.
-
+ 
  -Device:                     Enter Surface device type to download and inject latest drivers for.  Possible values: SurfacePro4, SurfacePro5, SurfacePro6, SurfacePro7, SurfaceLaptop, SurfaceLaptop2, SurfaceLaptop3, SurfaceBook, SurfaceBook2, SurfaceBook3, SurfaceStudio, SurfaceStudio2, SurfaceGo, SurfaceGoLTE, SurfaceGo2, and SurfaceHub2.  If this parameter is not specified, SurfacePro7 is used.
 
  -CreateUSB:                  Create bootable USB installation when finished, True or False.  True is the default.

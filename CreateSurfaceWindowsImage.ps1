@@ -10,8 +10,16 @@
 
 .NOTES
     Author:       Microsoft
-    Last Update:  31st August 2020
-    Version:      1.2.5.3
+    Last Update:  20th October 2020
+    Version:      1.2.5.4
+
+    Version 1.2.5.4
+    - Added support for Surface Laptop Go
+    - Added support for Windows 10 20H2.
+    - Added language support:
+      - Chinese (Simplified and Traditional)
+      - French
+      - Russian
 
     Version 1.2.5.3
     - Fixed default PowerShell execution policy to match OOB defaults (Restricted)
@@ -139,8 +147,8 @@ Param(
         Mandatory=$False,
         HelpMessage="Surface device type to add drivers to image for, if not specified no drivers injected - Custom can be used if using with a non-Surface device"
         )]
-        [ValidateSet('SurfacePro4', 'SurfacePro5', 'SurfacePro6', 'SurfacePro7', 'SurfaceLaptop', 'SurfaceLaptop2', 'SurfaceLaptop3Intel', 'SurfaceLaptop3AMD', 'SurfaceBook', 'SurfaceBook2', 'SurfaceBook3', 'SurfaceStudio', 'SurfaceStudio2', 'SurfaceGo', 'SurfaceGoLTE', 'SurfaceGo2', 'SurfaceHub2', 'Custom')]
-        [string]$Device = "SurfaceHub2",
+        [ValidateSet('SurfacePro4', 'SurfacePro5', 'SurfacePro6', 'SurfacePro7', 'SurfaceLaptop', 'SurfaceLaptop2', 'SurfaceLaptop3Intel', 'SurfaceLaptop3AMD', 'SurfaceLaptopGo', 'SurfaceBook', 'SurfaceBook2', 'SurfaceBook3', 'SurfaceStudio', 'SurfaceStudio2', 'SurfaceGo', 'SurfaceGoLTE', 'SurfaceGo2', 'SurfaceHub2', 'Custom')]
+        [string]$Device = "SurfacePro7",
 
     [Parameter(
         Position=12,
@@ -208,7 +216,7 @@ Param(
 
 
 
-$SDAVersion = "1.2.5.3"
+$SDAVersion = "1.2.5.4"
 $OutputEncoding = [console]::InputEncoding = [console]::OutputEncoding = New-Object System.Text.UTF8Encoding
 
 
@@ -1690,9 +1698,9 @@ Function Get-OSWIMFromISO
             If ($global:OSVersionFull)
             {
                 $global:OSVersion = $global:OSVersionFull.Substring(0, $global:OSVersionFull.LastIndexOf('.'))
-                If ($global:OSVersion -like "10.0.18362*")
+                If (($global:OSVersion -like "10.0.18362*") -or ($global:OSVersion -like "10.0.19041*"))
                 {
-                    Write-Output "$ImagePath contains image version $global:OSVersion, which could be either 19h1 or 19h2 - checking now..." | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                    Write-Output "$ImagePath contains image version $global:OSVersion, validating if H1 or H2 build of $global:OSVersion - checking..." | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
                     Write-Output ""
                     Write-Output "Mounting $ImagePath in $ScratchMountFolder..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
                     Mount-WindowsImage -ImagePath $ImagePath -Index $ImageIndex -Path $ScratchMountFolder -ReadOnly | Out-Null
@@ -1712,6 +1720,11 @@ Function Get-OSWIMFromISO
                     If ($global:ReleaseId -eq "1909")
                     {
                         $global:OSVersion = "10.0.18363"
+                    }
+                    # Specific 20H2 check as it will report as 10.0.19041 still when offline
+                    If ($global:ReleaseId -eq "2009")
+                    {
+                        $global:OSVersion = "10.0.19042"
                     }
                 }
                 Else
@@ -2779,6 +2792,10 @@ Function Update-Win10WIM
         If (($global:ReleaseId -eq "1909") -and ($Build -match "18362"))
         {
             $Build = $Build -replace "18362", "18363"
+        }
+        If (($global:ReleaseId -eq "2009") -and ($Build -match "19041"))
+        {
+            $Build = $Build -replace "19041", "19042"
         }
         If ($Device)
         {
