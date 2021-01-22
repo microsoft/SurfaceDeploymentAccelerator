@@ -10,8 +10,13 @@
 
 .NOTES
     Author:       Microsoft
-    Last Update:  20th October 2020
-    Version:      1.2.5.4
+    Last Update:  20th January 2021
+    Version:      1.2.5.5
+
+    Version 1.2.5.5
+    - Added support for Surface Pro 7+
+    - Fixed download issues for 20H2 images
+    - Fixed download issues when specifying "Custom" device type
 
     Version 1.2.5.4
     - Added support for Surface Laptop Go
@@ -147,7 +152,7 @@ Param(
         Mandatory=$False,
         HelpMessage="Surface device type to add drivers to image for, if not specified no drivers injected - Custom can be used if using with a non-Surface device"
         )]
-        [ValidateSet('SurfacePro4', 'SurfacePro5', 'SurfacePro6', 'SurfacePro7', 'SurfaceLaptop', 'SurfaceLaptop2', 'SurfaceLaptop3Intel', 'SurfaceLaptop3AMD', 'SurfaceLaptopGo', 'SurfaceBook', 'SurfaceBook2', 'SurfaceBook3', 'SurfaceStudio', 'SurfaceStudio2', 'SurfaceGo', 'SurfaceGoLTE', 'SurfaceGo2', 'SurfaceHub2', 'Custom')]
+        [ValidateSet('SurfacePro4', 'SurfacePro5', 'SurfacePro6', 'SurfacePro7', 'SurfacePro7Plus', 'SurfaceLaptop', 'SurfaceLaptop2', 'SurfaceLaptop3Intel', 'SurfaceLaptop3AMD', 'SurfaceLaptopGo', 'SurfaceBook', 'SurfaceBook2', 'SurfaceBook3', 'SurfaceStudio', 'SurfaceStudio2', 'SurfaceGo', 'SurfaceGoLTE', 'SurfaceGo2', 'SurfaceHub2', 'Custom')]
         [string]$Device = "SurfacePro7",
 
     [Parameter(
@@ -818,6 +823,13 @@ Function Get-LatestUpdates
     {
         $Date = Get-Date -Format "yyyy-MM"
     }
+
+    # WU catalog changed the naming starting in 20H2.
+    # It uses the friendly name instead of the release ID, so we have to correct it here.
+    If ($OSBuild -eq "2009")
+    {
+        $OSBuild = "20H2"
+    }
     
     $ServicingURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Servicing Stack " + $Architecture + " windows 10 " + $OSBuild
     $CumulativeURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + ' "cumulative update for Windows 10" ' + $Architecture + " " + $OSBuild
@@ -997,7 +1009,7 @@ Function Get-LatestSurfaceEthernetDrivers
 
     $DeviceDriverPath = "$TempFolder\$Device"
 
-    If (!($Device))
+    If (!($Device) -or ($Device -eq "Custom"))
     {
         # Nothing yet
     }
@@ -1231,6 +1243,12 @@ Function Get-LatestDrivers
     )
     Write-Output ""
     Write-Output ""
+
+    If (!($Device) -or ($Device -eq "Custom"))
+    {
+        Write-Output "Surface device not specified. Skipping driver download." | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        return
+    }
 
     $DeviceDriverPath = "$TempFolder\$Device"
 
