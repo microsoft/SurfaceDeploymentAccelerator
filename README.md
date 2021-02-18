@@ -22,6 +22,7 @@ Please use this GitHub Repos issue tracking capability to raise issues or featur
 # How to use (general)
  - Acquire a Windows 10 1909 or newer ISO that includes Windows 10 Professional or Windows 10 Enterprise images
  - Open an elevated PowerShell prompt (not PSCore - currently this tool has not been fully tested with PSCore 6 or 7), change directory to where SDA was placed, and execute one of the following command to create an image - replace paths as appropriate.
+ - DO NOT USE POWERSHELL ISE TO RUN THIS SCRIPT - use a regular PowerShell window.
  - To create a Windows 10 Professional image:
     X:\SurfaceDeploymentAccelerator\CreateSurfaceWindowsImage.ps1 -ISO "X:\en_windows_10_business_editions_version_2004_x64_dvd_d06ef8c5.iso" -OSSKU Pro -DestinationFolder C:\Output -Device SurfaceHub2
 
