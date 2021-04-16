@@ -224,7 +224,7 @@ Param(
 
 
 
-$SDAVersion = "1.2.5.4"
+$SDAVersion = "1.2.5.6"
 $OutputEncoding = [console]::InputEncoding = [console]::OutputEncoding = New-Object System.Text.UTF8Encoding
 
 
