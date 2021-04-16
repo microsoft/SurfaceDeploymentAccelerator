@@ -11,7 +11,7 @@
 .NOTES
     Author:       Microsoft
     Last Update:  16th April 2021
-    Version:      1.2.5.5
+    Version:      1.2.5.6
 
     Version 1.2.5.6
     - Added support for Surface Laptop 4
