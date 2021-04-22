@@ -4,8 +4,11 @@
 
 .NOTES
     Author:       Microsoft
-    Last Update:  20th October 2020
-    Version:      1.2.5.4
+    Last Update:  16th April 2021
+    Version:      1.2.5.6
+
+    Version 1.2.5.6
+    - Match master package version
 
     Version 1.2.5.4
     - Match master package version
@@ -37,7 +40,7 @@
 
 
 
-$SDAVersion = "1.2.5.4"
+$SDAVersion = "1.2.5.6"
 cls
 
 
