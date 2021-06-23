@@ -4,8 +4,11 @@
 
 .NOTES
     Author:       Microsoft
-    Last Update:  16th April 2021
-    Version:      1.2.5.6
+    Last Update:  23rd June 2021
+    Version:      1.2.5.7
+
+    Version 1.2.5.7
+    - Match master package version
 
     Version 1.2.5.6
     - Match master package version

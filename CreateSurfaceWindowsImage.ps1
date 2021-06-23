@@ -10,8 +10,11 @@
 
 .NOTES
     Author:       Microsoft
-    Last Update:  6th May 2021
-    Version:      1.2.5.6
+    Last Update:  23rd June 2021
+    Version:      1.2.5.7
+
+    Version 1.2.5.7
+    - Fixed Microsoft Update Catalog downloads
 
     Version 1.2.5.6
     - Added support for Surface Laptop 4
@@ -667,6 +670,18 @@ Function PrereqCheck
 
 
 
+Function Get-DownloadDialogText
+{
+    Param(
+        $Text,
+        $Pattern
+    )
+    
+    return [regex]::Match($Text, $Pattern + "\s?'?(.*?)'?;").Groups[1].Value
+}
+
+
+
 Function Download-LatestUpdates
 {
     Param(
@@ -683,117 +698,102 @@ Function Download-LatestUpdates
     $kbObj = Invoke-WebRequest -Uri $uri -UseBasicParsing
 
     # Parse the Response
-    $global:KBGUID = $null
-    $kbObjectLinks = ($kbObj.Links | Where-Object {$_.id -match "_link"})
-    $array = @()
+    $kbObjects = $kbObj.InputFields |
+        Where-Object { $_.type -eq 'Button' -and $_.Value -eq 'Download' } |
+        Select-Object -ExpandProperty ID
 
-    ForEach ($link in $kbObjectLinks)
+    $kbObjectsLinks = $kbObj.Links |
+        Where-Object ID -match '_link' |
+        Where-Object { $_.OuterHTML -match ( "(?=.*" + ( $Filter -join ")(?=.*" ) + ")" ) }
+
+    # Initialize array, get title and GUID of update
+    $guids = $null
+    $guids = @()
+    foreach ($kbObjectsLink in $kbObjectsLinks)
     {
-        $xmlNode = [XML]($link.outerHTML)
-
-        If ($xmlNode.HasChildNodes)
-        {
-            $kbId = $link.id -replace "_link", ""
-            $description = $xmlNode.FirstChild.InnerText.Trim()
-            $array += [PSCustomObject]@{
-                kbId = $kbId
-                description = $description
+        $itemguid = $kbObjectsLink.id.replace('_link', '')
+        $itemtitle = ($kbObjectsLink.outerHTML -replace '<[^>]+>', '').Trim()
+        if ($itemguid -in $kbObjects) {
+            $guids += [pscustomobject]@{
+                guid  = $itemguid
+                description = $itemtitle
             }
         }
     }
-
-    If ($array.count -gt 0)
+    
+    If ($Servicing)
     {
-        If ($Servicing)
-        {
-            $global:KBGUID = $array | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Servicing Stack Update for Windows 10*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
-            If ($global:KBGUID.Count -gt 1)
-            {
-                $largest = ($global:KBGUID | Measure-Object -Property description -Maximum)
-                $global:KBGUID = $global:KBGUID | Where-Object {$_.description -eq $largest.Maximum}
-            }
-        }
-        If ($Cumulative)
-        {
-            $global:KBGUID = $array | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Cumulative Update for Windows 10*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
-            If ($global:KBGUID.Count -gt 1)
-            {
-                $largest = ($global:KBGUID | Measure-Object -Property description -Maximum)
-                $global:KBGUID = $global:KBGUID | Where-Object {$_.description -eq $largest.Maximum}
-            }
-        }
-        If ($CumulativeDotNet)
-        {
-            $global:KBGUID = $array | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Cumulative Update for .NET Framework*") -and ($_.description -like "*Windows 10*") -and ($_.description -like "*$OSBuild*")}
-        }
-        If ($Adobe)
-        {
-            $global:KBGUID = $array | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Security Update for Adobe Flash Player for Windows 10*") -and ($_.description -like "*$OSBuild*")}
-        }
+        $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Servicing Stack Update for Windows 10*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
+    }
+    If ($Cumulative)
+    {
+        $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Cumulative Update for Windows 10*") -and -not ($_.description -like "*Dynamic Cumulative Update for Windows 10*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
+    }
+    If ($CumulativeDotNet)
+    {
+        $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Cumulative Update for .NET Framework*") -and ($_.description -like "*Windows 10*") -and ($_.description -like "*$OSBuild*")}
+    }
+    If ($Adobe)
+    {
+        $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Security Update for Adobe Flash Player for Windows 10*") -and ($_.description -like "*$OSBuild*")}
+    }
 
-        $updatesFound = $false
+    $scriptblock = {
+        $guid = $_.Guid
+        $itemtitle = $_.description
+        $guid
+        
+        $post = @{ size = 0; updateID = $guid; uidInfo = $guid } | ConvertTo-Json -Compress
+        $body = @{ updateIDs = "[$post]" }
+        Invoke-WebRequest -Uri 'https://www.catalog.update.microsoft.com/DownloadDialog.aspx' -Method Post -Body $body | Select-Object -ExpandProperty Content
+    }
 
-        ForEach ($Object in $global:KBGUID)
+    $downloaddialogs = $global:KBGUID | ForEach-Object -Process $scriptblock
+    $updatesFound = $false
+
+    ForEach ($downloaddialog in $downloaddialogs)
+    {
+        $title = Get-DownloadDialogText -Text $downloaddialog -Pattern 'enTitle ='
+        If (!($title))
         {
-            $kb = $Object.kbId
-            $curTxt = $Object.description
-            
-            ##Create Post Request to get the Download URL of the Update
-            $Post = @{ size = 0; updateID = $kb; uidInfo = $kb } | ConvertTo-Json -Compress
-            $PostBody = @{ updateIDs = "[$Post]" }
-            
-            ## Fetch and parse the download URL
-            $PostRes = (Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -Method Post -Body $postBody).content
-            ## Seeing two potentially different hosts serving download links:
-            $DLWUDOTCOM = ($PostRes | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } } ).source
-            $DLDELDOTCOM = ($PostRes | Select-String -AllMatches -Pattern "(http[s]?\://dl\.delivery\.mp\.microsoft\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } } ).source
+            #do nothing
+        }
+        Else
+        {
+            $downloaddialog = $downloaddialog.Replace('www.download.windowsupdate', 'download.windowsupdate')
+            $DLWUDOTCOM = ($downloaddialog | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } } ).source
+            $DLDELDOTCOM = ($downloaddialog | Select-String -AllMatches -Pattern "(http[s]?\://dl\.delivery\.mp\.microsoft\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } } ).source
+
             If ($DLWUDOTCOM)
             {
-                $DownloadLinks = $DLWUDOTCOM
+                $links = $DLWUDOTCOM
             }
-            ElseIf ($DLDELDOTCOM)
+            If ($DLDELDOTCOM)
             {
-                $DownloadLinks = $DLDELDOTCOM
+                $links = $DLDELDOTCOM
             }
-            If ($DownloadLinks)
+
+            If ($links)
             {
                 $updatesFound = $true
-                If ($DownloadLinks.Count -gt 1)
+                ForEach ($link in $links)
                 {
-                    ForEach ($URL in $DownloadLinks)
-                    {
-                        Write-Output "Download found:" | Receive-Output -Color Green -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-                        Write-Output $curTxt | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-                        Write-Output ""
-                        Write-Output ""
-                        DownloadFile -URL $URL -Path "$Path"
-                        Write-Output ""
-                        Write-Output ""
-                        Write-Output ""
-                        Write-Output ""
-                        Write-Output ""
-                    }
-                }
-                Else
-                {
-                    Write-Output "Download found:" | Receive-Output -Color Green -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-                    Write-Output $curTxt | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                    Write-Output "Download found:"
+                    Write-Output "Title:   $itemtitle"
+                    Write-Output "URL:     $link"
                     Write-Output ""
-                    Write-Output ""
-                    DownloadFile -URL $DownloadLinks -Path "$Path"
-                    Write-Output ""
-                    Write-Output ""
+                    DownloadFile -URL $link -Path $Path
                     Write-Output ""
                     Write-Output ""
                     Write-Output ""
                 }
             }
         }
-
-        If (!($updatesFound))
-        {
-            $global:KBGUID = $null
-        }
+    }
+    
+    If (!($updatesFound))
+    {
+        $global:KBGUID = $null
     }
 }
 
