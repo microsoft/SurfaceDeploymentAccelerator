@@ -158,7 +158,7 @@ Param(
         Mandatory=$False,
         HelpMessage="Add latest Out-Of-Band/Non Security update (bool true/false, default is true)"
         )]
-        [bool]$OOBUpdate = $False,
+        [bool]$OOBUpdate = $True,
 
     [Parameter(
         Position=11,
@@ -236,7 +236,7 @@ Param(
         Mandatory=$False,
         HelpMessage="Path to an MSI or extracted driver folder - required if you set UseLocalDriverPath variable to true or script will not find any drivers to inject"
         )]
-        [string]$LocalDriverPath
+        [string]$LocalDriverPa
     )
 
 
