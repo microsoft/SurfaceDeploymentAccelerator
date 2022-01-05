@@ -453,11 +453,7 @@
                 <Driver name="surfaceserialhubdriver.inf"/>
                 <Driver name="surfacestoragefwupdateenum.inf"/>
                 <Driver name="surfacestoragefwupdatekbg40zns256gpackage.inf"/>
-                <Driver name="surfacewakeontouchcontrol.inf"/>
-                <Driver name="tbthostcontroller.inf"/>
-                <Driver name="tbthostcontrollerhsacomponent.inf"/>
-                <Driver name="tbthostcontrollertoastcomponent.inf"/>
-                <Driver name="tbtp2pndisdrv.inf"/>
+                <Driver name="surfacewakeontouchcontrol.inf">
             </Drivers>
         </SurfaceLaptopStudio>
         <SurfaceStudio>
