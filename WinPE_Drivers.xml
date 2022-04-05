@@ -138,6 +138,33 @@
                 <Driver name="surfacestoragefwupdate.inf"/>
             </Drivers>
         </SurfacePro7>
+        <SurfacePro8>
+            <Drivers>
+                <Driver name="heci.inf"/>
+                <Driver name="ialpss2_gpio2_tgl.inf"/>
+                <Driver name="ialpss2_i2c_tgl.inf"/>
+                <Driver name="ialpss2_spi_tgl.inf"/>
+                <Driver name="ialpss2_uart2_tgl.inf"/>
+                <Driver name="intelthcbase.inf"/>
+                <Driver name="msux64w10.inf"/>
+                <Driver name="netwtw08.inf"/>
+                <Driver name="surfacebattery.inf"/>
+                <Driver name="surfacehidminidriver.inf"/>
+                <Driver name="surfaceintegrationdriver.inf"/>
+                <Driver name="surfacesarmanager.inf"/>
+                <Driver name="surfaceserialhubdriver.inf"/>
+                <Driver name="surfacetimealarmacpifilter.inf"/>
+                <Driver name="surfacevirtualfunctionenum.inf"/>
+                <Driver name="tbthostcontroller.inf"/>
+                <Driver name="tbthostcontrollerhsacomponent.inf"/>
+                <Driver name="tbthostcontrollertoastcomponent.inf"/>
+                <Driver name="tbtp2pndisdrv.inf"/>
+                <Driver name="tbtp2pndisdrv.inf"/>
+                <Driver name="tigerlakepch-lpsystem.inf"/>
+                <Driver name="tigerlakepch-lpsystemlpss.inf"/>
+                <Driver name="tigerlakepch-lpusbfunctioncontroller.inf"/>
+            </Drivers>
+        </SurfacePro8>
         <SurfaceLaptop>
             <Drivers>
                 <Driver name="dptf_acpi.inf"/>
@@ -412,6 +439,23 @@
                 <Driver name="surfacetimealarmacpifilter.inf"/>
             </Drivers>
         </SurfaceBook3>
+        <SurfaceLaptopStudio>
+            <Drivers>
+                <Driver name="heci.inf"/>
+                <Driver name="ialpss2_gpio2_tgl.inf"/>
+                <Driver name="ialpss2_uart2_tgl.inf"/>
+                <Driver name="intelthcbase.inf"/>
+                <Driver name="surfacehidminidriver.inf"/>
+                <Driver name="surfacehotplug.inf"/>
+                <Driver name="surfaceintegrationdriver.inf"/>
+                <Driver name="surfacepenwirelesschargerhotkey.inf"/>
+                <Driver name="surfacesarmanager.inf"/>
+                <Driver name="surfaceserialhubdriver.inf"/>
+                <Driver name="surfacestoragefwupdateenum.inf"/>
+                <Driver name="surfacestoragefwupdatekbg40zns256gpackage.inf"/>
+                <Driver name="surfacewakeontouchcontrol.inf">
+            </Drivers>
+        </SurfaceLaptopStudio>
         <SurfaceStudio>
             <Drivers>
                 <Driver name="e1d65x64.inf"/>
@@ -461,6 +505,10 @@
             <Drivers>
             </Drivers>
         </SurfaceGo2>
+        <SurfaceGo3>
+            <Drivers>
+            </Drivers>
+        </SurfaceGo3>
         <SurfaceHub2>
             <Drivers>
                 <Driver name="commonsystem.inf"/>

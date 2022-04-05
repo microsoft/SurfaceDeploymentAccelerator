@@ -10,8 +10,15 @@
 
 .NOTES
     Author:       Microsoft
-    Last Update:  23rd June 2021
-    Version:      1.2.5.7
+    Last Update:  30th November 2021
+    Version:      1.3.0.0
+
+    Version 1.3.0.0
+    - Added support for Surface Laptop Studio
+    - Added support for Surface Pro 8
+    - Added support for Surface Go 3
+    - Added support for Windows 11
+    - Added support for Windows 10 21H1/21H2
 
     Version 1.2.5.7
     - Fixed Microsoft Update Catalog downloads
@@ -146,79 +153,86 @@ Param(
         )]
         [bool]$AdobeFlashUpdate = $True,
 
-    [Parameter(
+        [Parameter(
         Position=10,
+        Mandatory=$False,
+        HelpMessage="Add latest Out-Of-Band/Non Security update (bool true/false, default is true)"
+        )]
+        [bool]$OOBUpdate = $False,
+
+    [Parameter(
+        Position=11,
         Mandatory=$False,
         HelpMessage="Add Office 365 C2R (bool true/false, default is true)"
         )]
         [bool]$Office365 = $True,
 
     [Parameter(
-        Position=11,
+        Position=12,
         Mandatory=$False,
         HelpMessage="Surface device type to add drivers to image for, if not specified no drivers injected - Custom can be used if using with a non-Surface device"
         )]
-        [ValidateSet('SurfacePro4', 'SurfacePro5', 'SurfacePro6', 'SurfacePro7', 'SurfacePro7Plus', 'SurfaceLaptop', 'SurfaceLaptop2', 'SurfaceLaptop3Intel', 'SurfaceLaptop3AMD', 'SurfaceLaptop4Intel', 'SurfaceLaptop4AMD', 'SurfaceLaptopGo', 'SurfaceBook', 'SurfaceBook2', 'SurfaceBook3', 'SurfaceStudio', 'SurfaceStudio2', 'SurfaceGo', 'SurfaceGoLTE', 'SurfaceGo2', 'SurfaceHub2', 'Custom')]
-        [string]$Device = "SurfacePro7",
+        [ValidateSet('SurfacePro4', 'SurfacePro5', 'SurfacePro6', 'SurfacePro7', 'SurfacePro7Plus', 'SurfacePro8', 'SurfaceLaptop', 'SurfaceLaptop2', 'SurfaceLaptop3Intel', 'SurfaceLaptop3AMD', 'SurfaceLaptop4Intel', 'SurfaceLaptop4AMD', 'SurfaceLaptopGo', 'SurfaceLaptopStudio', 'SurfaceBook', 'SurfaceBook2', 'SurfaceBook3', 'SurfaceStudio', 'SurfaceStudio2', 'SurfaceGo', 'SurfaceGoLTE', 'SurfaceGo2', 'SurfaceGo3', 'SurfaceHub2', 'Custom')]
+        [string]$Device = "SurfacePro8",
 
     [Parameter(
-        Position=12,
+        Position=13,
         Mandatory=$False,
         HelpMessage="Create USB key when finished (bool true/false, default is true)"
         )]
         [bool]$CreateUSB = $True,
 
     [Parameter(
-        Position=13,
+        Position=14,
         Mandatory=$False,
         HelpMessage="Create bootable ISO file (useful for testing) when finished (bool true/false, default is true)"
         )]
         [bool]$CreateISO = $True,
 
     [Parameter(
-        Position=14,
+        Position=15,
         Mandatory=$False,
         HelpMessage="Location of Windows ADK installation"
         )]
         [string]$WindowsKitsInstall = "${env:ProgramFiles(x86)}\Windows Kits\10\Assessment and Deployment Kit",
 
     [Parameter(
-        Position=15,
+        Position=16,
         Mandatory=$False,
         HelpMessage="Use BITS for downloads"
         )]
         [bool]$BITSTransfer = $True,
 
     [Parameter(
-        Position=16,
+        Position=17,
         Mandatory=$False,
         HelpMessage="Edit Install.wim"
         )]
         [bool]$InstallWIM = $True,
 
     [Parameter(
-        Position=17,
+        Position=18,
         Mandatory=$False,
         HelpMessage="Edit boot.wim"
         )]
         [bool]$BootWIM = $True,
 
     [Parameter(
-        Position=18,
+        Position=19,
         Mandatory=$False,
         HelpMessage="Keep original unsplit WIM even if resulting image size >4GB (bool true false, default is true)"
         )]
         [bool]$KeepOriginalWIM = $True,
 
     [Parameter(
-        Position=19,
+        Position=20,
         Mandatory=$False,
         HelpMessage="Use a local driver path instead of downloading an MSI (bool true false, default is false)"
         )]
         [bool]$UseLocalDriverPath = $False,
 
     [Parameter(
-        Position=20,
+        Position=21,
         Mandatory=$False,
         HelpMessage="Path to an MSI or extracted driver folder - required if you set UseLocalDriverPath variable to true or script will not find any drivers to inject"
         )]
@@ -227,8 +241,10 @@ Param(
 
 
 
-$SDAVersion = "1.2.5.6"
+$SDAVersion = "1.3.0.0"
 $OutputEncoding = [console]::InputEncoding = [console]::OutputEncoding = New-Object System.Text.UTF8Encoding
+Add-Type –AssemblyName System.Speech
+$SpeechSynthesizer = New-Object –TypeName System.Speech.Synthesis.SpeechSynthesizer
 
 
 
@@ -508,7 +524,7 @@ Function PrereqCheck
 
     # Windows Version Check
     $OSCaption = (Get-CimInstance -ClassName win32_operatingsystem).caption
-    If ($OSCaption -like "Microsoft Windows 10*" -or $OSCaption -like "Microsoft Windows Server 2019*")
+    If ($OSCaption -like "Microsoft Windows 10*" -or $OSCaption -like "Microsoft Windows 11*" -or $OSCaption -like "Microsoft Windows Server 2019*")
     {
         # All OK
     }
@@ -692,6 +708,8 @@ Function Download-LatestUpdates
         $Cumulative,
         $CumulativeDotNet,
         $Adobe,
+        $OOB,
+        $Windows,
         $OSBuild
     )
 
@@ -721,27 +739,57 @@ Function Download-LatestUpdates
         }
     }
     
-    If ($Servicing)
+    If ($Windows -eq "Windows 10")
     {
-        $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Servicing Stack Update for Windows 10*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
+        If ($Servicing)
+        {
+            $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Servicing Stack Update for Windows 10*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
+        }
+        If ($Cumulative)
+        {
+            $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Cumulative Update for Windows 10*") -and -not ($_.description -like "*Dynamic*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
+        }
+        If ($CumulativeDotNet)
+        {
+            $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Cumulative Update for .NET Framework*") -and ($_.description -like "*Windows 10*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
+        }
+        If ($Adobe)
+        {
+            $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Security Update for Adobe Flash Player for Windows 10*") -and ($_.description -like "*$OSBuild*")  -and ($_.description -like "*$Architecture*")}
+        }
+        If ($OOB)
+        {
+            $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Update for Windows 10*") -and -not ($_.description -like "*Dynamic*") -and -not ($_.description -like "*Cumulative*") -and ($_.description -like "*$Architecture*")}
+        }
     }
-    If ($Cumulative)
+    ElseIf ($Windows -eq "Windows 11")
     {
-        $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Cumulative Update for Windows 10*") -and -not ($_.description -like "*Dynamic Cumulative Update for Windows 10*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
+        If ($Servicing)
+        {
+            $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Servicing Stack Update for Windows*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
+        }
+        If ($Cumulative)
+        {
+            $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Cumulative Update for*") -and -not ($_.description -like "*Dynamic Cumulative Update for*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
+        }
+        If ($CumulativeDotNet)
+        {
+            $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Cumulative Update for .NET Framework*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
+        }
+        If ($Adobe)
+        {
+            $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Security Update for Adobe Flash Player for Windows*") -and ($_.description -like "*$OSBuild*")  -and ($_.description -like "*$Architecture*")}
+        }
+        If ($OOB)
+        {
+            $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Update for*") -and -not ($_.description -like "*Dynamic*") -and -not ($_.description -like "*Cumulative*") -and ($_.description -like "*$Windows*") -and ($_.description -like "*$Architecture*")}
+        }
     }
-    If ($CumulativeDotNet)
-    {
-        $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Cumulative Update for .NET Framework*") -and ($_.description -like "*Windows 10*") -and ($_.description -like "*$OSBuild*")}
-    }
-    If ($Adobe)
-    {
-        $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Security Update for Adobe Flash Player for Windows 10*") -and ($_.description -like "*$OSBuild*")}
-    }
+    
 
     $scriptblock = {
         $guid = $_.Guid
         $itemtitle = $_.description
-        $guid
         
         $post = @{ size = 0; updateID = $guid; uidInfo = $guid } | ConvertTo-Json -Compress
         $body = @{ updateIDs = "[$post]" }
@@ -806,11 +854,22 @@ Function Get-LatestUpdates
         $Cumulative = $False,
         $CumulativeDotNet = $False,
         $Adobe = $False,
+        $OOB = $False,
+        $Windows,
         $Path,
         $Date,
         $OSBuild,
         $Architecture
     )
+
+    If ($Windows -eq "W10")
+    {
+        $Windows = "Windows 10"
+    }
+    If ($Windows -eq "W11")
+    {
+        $Windows = "Windows 11"
+    }
 
     If (!($Path))
     {
@@ -826,24 +885,18 @@ Function Get-LatestUpdates
     {
         $Date = Get-Date -Format "yyyy-MM"
     }
-
-    # WU catalog changed the naming starting in 20H2.
-    # It uses the friendly name instead of the release ID, so we have to correct it here.
-    If ($OSBuild -eq "2009")
-    {
-        $OSBuild = "20H2"
-    }
     
-    $ServicingURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Servicing Stack " + $Architecture + " windows 10 " + $OSBuild
-    $CumulativeURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + ' "cumulative update for Windows 10" ' + $Architecture + " " + $OSBuild
-    $CumulativeDotNetURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + ' "cumulative update for .NET Framework" ' + $Architecture + " windows 10 " + $OSBuild
-    $AdobeURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + ' "Security Update for Adobe Flash Player for Windows 10" ' + $Architecture + " " + $OSBuild
+    $ServicingURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Servicing Stack " + $Architecture + " " + $Windows + " " + $OSBuild
+    $CumulativeURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Cumulative update for " + $Windows + " for " + $Architecture + "-based Systems " + $OSBuild
+    $CumulativeDotNetURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Cumulative update for .NET Framework " + $Windows + " " + $Architecture + " " + $OSBuild
+    $AdobeURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Security Update for Adobe Flash Player for " + $Windows + " " + $Architecture + " " + $OSBuild
+    $OOBURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Update for " + $Windows + " for " + $Architecture + "-based Systems "
 
     If ($Servicing)
     {
-        Write-Output "Attempting to find and download Servicing Stack updates for $Architecture Windows 10 version $OSBuild for month $Date..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Write-Output "Attempting to find and download Servicing Stack updates for $Architecture $Windows version $OSBuild for month $Date..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
         $uri = $ServicingURI
-        Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $True -Cumulative $False -CumulativeDotNet $False -Adobe $False -OSBuild $OSBuild
+        Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $True -Cumulative $False -CumulativeDotNet $False -Adobe $False -OOB $False -Windows $Windows -OSBuild $OSBuild
         If (!($global:KBGUID))
         {
             While (!($global:KBGUID))
@@ -857,10 +910,10 @@ Function Get-LatestUpdates
                     Write-Output "No update found for month ($Date) - attempting previous month ($NewDate)..." | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 
                     $Date = $NewDate
-                    $ServicingURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Servicing Stack " + $Architecture + " windows 10 " + $OSBuild
+                    $ServicingURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Servicing Stack " + $Architecture + " " + $Windows + " " + $OSBuild
 
                     $uri = $ServicingURI
-                    Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $True -Cumulative $False -CumulativeDotNet $False -Adobe $False -OSBuild $OSBuild
+                    Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $True -Cumulative $False -CumulativeDotNet $False -Adobe $False -OOB $False -Windows $Windows -OSBuild $OSBuild
                 }
                 Else
                 {
@@ -874,9 +927,9 @@ Function Get-LatestUpdates
     }
     If ($Cumulative)
     {
-        Write-Output "Attempting to find and download Cumulative Update updates for $Architecture Windows 10 version $OSBuild for month $Date..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Write-Output "Attempting to find and download Cumulative Update updates for $Architecture $Windows version $OSBuild for month $Date..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
         $uri = $CumulativeURI
-        Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $False -Cumulative $True -CumulativeDotNet $False -Adobe $False -OSBuild $OSBuild
+        Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $False -Cumulative $True -CumulativeDotNet $False -Adobe $False -OOB $False -Windows $Windows -OSBuild $OSBuild
         If (!($global:KBGUID))
         {
             While (!($global:KBGUID))
@@ -890,10 +943,10 @@ Function Get-LatestUpdates
                     Write-Output "No update found for month ($Date) - attempting previous month ($NewDate)..." | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 
                     $Date = $NewDate
-                    $CumulativeURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + ' "cumulative update for Windows 10" ' + $Architecture + " " + $OSBuild
+                    $CumulativeURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Cumulative update for " + $Windows + " for " + $Architecture + "-based Systems " + $OSBuild
 
                     $uri = $CumulativeURI
-                    Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $False -Cumulative $True -CumulativeDotNet $False -Adobe $False -OSBuild $OSBuild
+                    Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $False -Cumulative $True -CumulativeDotNet $False -Adobe $False -OOB $False -Windows $Windows -OSBuild $OSBuild
                 }
                 Else
                 {
@@ -907,9 +960,9 @@ Function Get-LatestUpdates
     }
     If ($CumulativeDotNet)
     {
-        Write-Output "Attempting to find and download Cumulative .NET Framework Update updates for $Architecture Windows 10 version $OSBuild for month $Date..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Write-Output "Attempting to find and download Cumulative .NET Framework Update updates for $Architecture $Windows version $OSBuild for month $Date..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
         $uri = $CumulativeDotNetURI
-        Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $False -Cumulative $False -CumulativeDotNet $True -Adobe $False -OSBuild $OSBuild
+        Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $False -Cumulative $False -CumulativeDotNet $True -Adobe $False -OOB $False -Windows $Windows -OSBuild $OSBuild
         If (!($global:KBGUID))
         {
             While (!($global:KBGUID))
@@ -923,10 +976,10 @@ Function Get-LatestUpdates
                     Write-Output "No update found for month ($Date) - attempting previous month ($NewDate)..." | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 
                     $Date = $NewDate
-                    $CumulativeDotNetURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + ' "cumulative update for .NET Framework" ' + $Architecture + " windows 10 " + $OSBuild
+                    $CumulativeDotNetURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Cumulative update for .NET Framework " + $Windows + " " + $Architecture + " " + $OSBuild
 
                     $uri = $CumulativeDotNetURI
-                    Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $False -Cumulative $False -CumulativeDotNet $True -Adobe $False -OSBuild $OSBuild
+                    Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $False -Cumulative $False -CumulativeDotNet $True -Adobe $False -OOB $False -Windows $Windows -OSBuild $OSBuild
                 }
                 Else
                 {
@@ -940,9 +993,9 @@ Function Get-LatestUpdates
     }
     If ($Adobe)
     {
-        Write-Output "Attempting to find and download Adobe Flash Player updates for $Architecture Windows 10 version $OSBuild for month $Date..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Write-Output "Attempting to find and download Adobe Flash Player updates for $Architecture $Windows version $OSBuild for month $Date..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
         $uri = $AdobeURI
-        Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $False -Cumulative $False -CumulativeDotNet $False -Adobe $True -OSBuild $OSBuild
+        Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $False -Cumulative $False -CumulativeDotNet $False -Adobe $True -OOB $False -OSBuild $OSBuild
         If (!($global:KBGUID))
         {
             While (!($global:KBGUID))
@@ -956,10 +1009,10 @@ Function Get-LatestUpdates
                     Write-Output "No update found for month ($Date) - attempting previous month ($NewDate)..." | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 
                     $Date = $NewDate
-                    $AdobeURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + ' "Security Update for Adobe Flash Player for Windows 10" ' + $Architecture + " " + $OSBuild
+                    $AdobeURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Security Update for Adobe Flash Player for " + $Windows + " " + $Architecture + " " + $OSBuild
 
                     $uri = $AdobeURI
-                    Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $False -Cumulative $False -CumulativeDotNet $False -Adobe $True -OSBuild $OSBuild
+                    Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $False -Cumulative $False -CumulativeDotNet $False -Adobe $True -OOB $False -Windows $Windows -OSBuild $OSBuild
                 }
                 Else
                 {
@@ -969,8 +1022,40 @@ Function Get-LatestUpdates
             }
         }
         $Date = Get-Date -Format "yyyy-MM"
-        $LoopBreak = $null
-        
+        $LoopBreak = $null   
+    }
+    If ($OutOfBand)
+    {
+        Write-Output "Attempting to find and download Out-of-band/Non-security updates for $Architecture $Windows version $OSBuild for month $Date..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        $uri = $OOBURI
+        Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $False -Cumulative $False -CumulativeDotNet $False -Adobe $False -OOB $True -Windows $Windows -OSBuild $OSBuild
+        If (!($global:KBGUID))
+        {
+            While (!($global:KBGUID))
+            {
+                If ($LoopBreak -le 5)
+                {
+                    $LoopBreak++
+                    Start-Sleep 1
+                    $NewDate = (Get-Date).AddMonths(-$LoopBreak)
+                    $NewDate = $NewDate.ToString("yyyy-MM")
+                    Write-Output "No update found for month ($Date) - attempting previous month ($NewDate)..." | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+
+                    $Date = $NewDate
+                    $OOBURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Update for " + $Windows + " for " + $Architecture + "-based Systems "
+
+                    $uri = $OOBURI
+                    Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $False -Cumulative $False -CumulativeDotNet $False -Adobe $False -OOB $True -Windows $Windows -OSBuild $OSBuild
+                }
+                Else
+                {
+                    Write-Output "Unable to find update for past $LoopBreak month's of searches.  Continuing..." | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                    Break
+                }
+            }
+        }
+        $Date = Get-Date -Format "yyyy-MM"
+        $LoopBreak = $null   
     }
 }
 
@@ -1022,99 +1107,91 @@ Function Get-LatestSurfaceEthernetDrivers
     }
     Else
     {
-        $URI = "http://www.catalog.update.microsoft.com/Search.aspx?q=Surface net Windows 10"
-        $kbObj = Invoke-WebRequest -Uri $URI -UseBasicParsing
-
-        $global:KBGUID = $null
-        $kbObjectLinks = ($kbObj.Links | Where-Object {$_.id -match "_link"})
-        $array = @()
-
-
+        $URI = 'https://www.catalog.update.microsoft.com/Search.aspx?q=Realtek - Net - 10.45.0308.2021'
         $kbObj = Invoke-WebRequest -Uri $uri -UseBasicParsing
 
         # Parse the Response
-        $global:KBGUID = $null
-        $kbObjectLinks = ($kbObj.Links | Where-Object {$_.id -match "_link"})
-        $array = @()
+        $kbObjects = $kbObj.InputFields |
+            Where-Object { $_.type -eq 'Button' -and $_.Value -eq 'Download' } |
+            Select-Object -ExpandProperty ID
 
-        ForEach ($link in $kbObjectLinks)
+        $kbObjectsLinks = $kbObj.Links |
+            Where-Object ID -match '_link' |
+            Where-Object { $_.OuterHTML -match ( "(?=.*" + ( $Filter -join ")(?=.*" ) + ")" ) }
+
+        # Initialize array, get title and GUID of update
+        $guids = $null
+        $guids = @()
+        foreach ($kbObjectsLink in $kbObjectsLinks)
         {
-            $xmlNode = [XML]($link.outerHTML)
-
-            If ($xmlNode.HasChildNodes)
-            {
-                $kbId = $link.id -replace "_link", ""
-                $description = $xmlNode.FirstChild.InnerText.Trim()
-                $array += [PSCustomObject]@{
-                    kbId = $kbId
-                    description = $description
+            $itemguid = $kbObjectsLink.id.replace('_link', '')
+            $itemtitle = ($kbObjectsLink.outerHTML -replace '<[^>]+>', '').Trim()
+            if ($itemguid -in $kbObjects) {
+                $guids += [pscustomobject]@{
+                    guid  = $itemguid
+                    description = $itemtitle
                 }
             }
         }
+        
+        # Return a hard-coded array member for now until this settles out - changeover from "Surface - NET" to "Realtek - Net" causes issues with # of returns and version info changes
+        #$global:KBGUID = $guids | Where-Object {($_.description -like "*Realtek - Net - 10.45.0308.2021*")}
+        $global:KBGUID = $guids[0]
 
-        If ($array.count -gt 0)
-        {
-            $global:KBGUID = $array | Where-Object {($_.description -like "*Surface - Net - 10.*")}
-
-            If ($global:KBGUID.Count -gt 1)
-            {
-                $largest = ($global:KBGUID | Measure-Object -Property description -Maximum)
-                $global:KBGUID = $global:KBGUID | Where-Object {$_.description -eq $largest.Maximum}
-            }
+        $scriptblock = {
+            $guid = $_.Guid
+            $itemtitle = $_.description
+            $guid
+        
+            $post = @{ size = 0; updateID = $guid; uidInfo = $guid } | ConvertTo-Json -Compress
+            $body = @{ updateIDs = "[$post]" }
+            Invoke-WebRequest -Uri 'https://www.catalog.update.microsoft.com/DownloadDialog.aspx' -Method Post -Body $body | Select-Object -ExpandProperty Content
         }
 
-        ForEach ($Object in $global:KBGUID)
+        $downloaddialogs = $global:KBGUID | ForEach-Object -Process $scriptblock
+        $updatesFound = $false
+
+        ForEach ($downloaddialog in $downloaddialogs)
         {
-            $kb = $Object.kbId
-            $curTxt = $Object.description
-    
-            ##Create Post Request to get the Download URL of the Update
-            $Post = @{ size = 0; updateID = $kb; uidInfo = $kb } | ConvertTo-Json -Compress
-            $PostBody = @{ updateIDs = "[$Post]" }
-    
-            ## Fetch and parse the download URL
-            $PostRes = (Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -Method Post -Body $postBody).content
-            $DownloadLinks = ($PostRes | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } } ).source
-            If ($DownloadLinks)
+            $title = Get-DownloadDialogText -Text $downloaddialog -Pattern 'enTitle ='
+            If (!($title))
             {
-                If ($DownloadLinks.Count -gt 1)
+                #do nothing
+            }
+            Else
+            {
+                $downloaddialog = $downloaddialog.Replace('www.download.windowsupdate', 'download.windowsupdate')
+                $DLWUDOTCOM = ($downloaddialog | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } } ).source
+                $DLDELDOTCOM = ($downloaddialog | Select-String -AllMatches -Pattern "(http[s]?\://dl\.delivery\.mp\.microsoft\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } } ).source
+
+                If ($DLWUDOTCOM)
                 {
-                    ForEach ($URL in $DownloadLinks)
+                "URL:     $link"
+                    $links = $DLWUDOTCOM
+                }
+                If ($DLDELDOTCOM)
+                {
+                    $links = $DLDELDOTCOM
+                }
+
+                If ($links)
+                {
+                    $updatesFound = $true
+                    ForEach ($link in $links)
                     {
                         Write-Output "Download found:" | Receive-Output -Color Green -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-                        Write-Output $curTxt | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                        Write-Output "Title:   $itemtitle" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                        Write-Output "URL:     $link" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
                         Write-Output ""
-                        Write-Output ""
-                        $TempCAB = DownloadFile -URL $URL -Path "$DeviceDriverPath"
-                        Write-Output ""
-                        Write-Output ""
-                        Write-Output ""
-                        Write-Output ""
+                        $TempCAB = DownloadFile -URL $link -Path "$DeviceDriverPath"
                         Write-Output ""
                         $expand = "$env:WINDIR\System32\expand.exe"
                         $args = "-f:* $TempCAB $DeviceDriverPath"
                         Start-Process -FilePath $expand -ArgumentList $args -Wait -NoNewWindow
                         Write-Output ""
                         Write-Output ""
+                        Write-Output ""
                     }
-                }
-                Else
-                {
-                    Write-Output "Download found:" | Receive-Output -Color Green -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-                    Write-Output $curTxt | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-                    Write-Output ""
-                    Write-Output ""
-                    $TempCAB = DownloadFile -URL $DownloadLinks -Path "$DeviceDriverPath"
-                    Write-Output ""
-                    Write-Output ""
-                    Write-Output ""
-                    Write-Output ""
-                    Write-Output ""
-                    $expand = "$env:WINDIR\System32\expand.exe"
-                    $args = "-f:* $TempCAB $DeviceDriverPath"
-                    Start-Process -FilePath $expand -ArgumentList $args -Wait -NoNewWindow
-                    Write-Output ""
-                    Write-Output ""
                 }
             }
         }
@@ -1136,11 +1213,11 @@ Function Get-LatestWinUSBDrivers
 
     If (!($Device -eq "SurfaceHub2"))
     {
-        # Nothing yet
+        # Do nothing
     }
     Else
     {
-        $URI = "http://www.catalog.update.microsoft.com/Search.aspx?q=SMSC-Microchip WinUSB USB2534 Device Windows 10"
+        $URI = "http://www.catalog.update.microsoft.com/Search.aspx?q=SMSC-Microchip WinUSB USB2534 Device"
         $kbObj = Invoke-WebRequest -Uri $URI -UseBasicParsing
 
         $global:KBGUID = $null
@@ -1302,7 +1379,7 @@ Function Get-LatestDrivers
     }
     Else
     {
-        Write-Output "Downloading latest drivers for $Device, Windows 10 version $global:OSVersion..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Write-Output "Downloading latest drivers for $Device ..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
         $OSBuild = New-Object string (,@($global:OSVersion.ToCharArray() | Select-Object -Last 5))
 
         If ($Device -eq "SurfaceLaptop3Intel")
@@ -1479,6 +1556,31 @@ Function Get-Office365
 
 
 
+Function Get-OOBUpdates
+{
+    Param(
+        [string]$TempFolder
+    )
+
+    $OOBUpdatePath = "$TempFolder\OOB"
+
+    If (Test-Path "$OOBUpdatePath")
+    {
+        Write-Output "Deleting $OOBUpdatePath\..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Get-ChildItem -Path "$OOBUpdatePath" -Recurse | Remove-Item -Force -Recurse
+        Remove-Item -Path "$OOBUpdatePath" -Force
+    }
+    If (!(Test-Path "$OOBUpdatePath"))
+    {
+        New-Item -path "$OOBUpdatePath" -ItemType "directory" | Out-Null
+    }
+
+    Write-Output "Downloading latest Out-Of-Band/Non-security update for $global:OSVersion..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+    Get-LatestUpdates -OOB $True -Path $OOBUpdatePath -Windows $global:WindowsVersion -OSBuild $global:ReleaseId -Architecture $Architecture
+}
+
+
+
 Function Get-AdobeFlashUpdates
 {
     Param(
@@ -1499,7 +1601,7 @@ Function Get-AdobeFlashUpdates
     }
 
     Write-Output "Downloading latest Adobe Flash update for $global:OSVersion..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-    Get-LatestUpdates -Adobe $True -Path $adobeUpdatePath -OSBuild $global:ReleaseId -Architecture $Architecture
+    Get-LatestUpdates -Adobe $True -Path $adobeUpdatePath -Windows $global:WindowsVersion -OSBuild $global:ReleaseId -Architecture $Architecture
 }
 
 
@@ -1524,7 +1626,7 @@ Function Get-CumulativeUpdates
     }
 
     Write-Output "Downloading latest Cumulative Update for $global:OSVersion..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-    Get-LatestUpdates -Cumulative $True -Path $CumulativeUpdatePath -OSBuild $global:ReleaseId -Architecture $Architecture
+    Get-LatestUpdates -Cumulative $True -Path $CumulativeUpdatePath -Windows $global:WindowsVersion -OSBuild $global:ReleaseId -Architecture $Architecture
 }
 
 
@@ -1549,7 +1651,7 @@ Function Get-ServicingStackUpdates
     }
 
     Write-Output "Downloading latest Servicing Stack update for $global:OSVersion..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-    Get-LatestUpdates -Servicing $True -Path $ServicingStackPath -OSBuild $global:ReleaseId -Architecture $Architecture
+    Get-LatestUpdates -Servicing $True -Path $ServicingStackPath -Windows $global:WindowsVersion -OSBuild $global:ReleaseId -Architecture $Architecture
 }
 
 
@@ -1574,7 +1676,7 @@ Function Get-CumulativeDotNetUpdates
     }
 
     Write-Output "Downloading latest Dot Net Cumulative updates for $global:OSVersion..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-    Get-LatestUpdates -CumulativeDotNet $True -Path $CumulativeDotNetPath -OSBuild $global:ReleaseId -Architecture $Architecture
+    Get-LatestUpdates -CumulativeDotNet $True -Path $CumulativeDotNetPath -Windows $global:WindowsVersion -OSBuild $global:ReleaseId -Architecture $Architecture
 }
 
 
@@ -1635,7 +1737,6 @@ Function Get-OSWIMFromISO
     ForEach ($WIM in $WIMs)
     {
         $TempWIM = $WIM.FullName
-        #$OSWIM = Get-WindowsImage -ImagePath $TempWIM | Where-Object {($_.ImageName -like "*$($OSSKU)") -or ($_.ImageName -like "*$($OSSKU) Evaluation") -or ($_.ImageName -like "*$OSSKU) LTSC")}
         
         # Handle different language support as per issue #1 (https://github.com/microsoft/SurfaceDeploymentAccelerator/issues/1)
         $OSImages = Get-WindowsImage -ImagePath $TempWIM
@@ -1643,7 +1744,7 @@ Function Get-OSWIMFromISO
         # Read WinPEXML file
         [string]$XmlPath = "$WorkingDirPath\Languages.xml"
         [Xml]$LanguagesXML = Get-Content $XmlPath
-        $Editions = $LanguagesXML.Windows10.Editions.$OSSKU.Variants.Variant
+        $Editions = $LanguagesXML.Windows.Editions.$OSSKU.Variants.Variant
 
         Write-Output "Checking $TempWIM for valid images..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
         $OSImageFound = $False
@@ -1663,7 +1764,7 @@ Function Get-OSWIMFromISO
                 }
                 Else
                 {
-                    # Do Nothing
+                    # Do nothing
                 }
             }
         }
@@ -1702,6 +1803,15 @@ Function Get-OSWIMFromISO
             Write-Output "Version:       $ImageVersion" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
             Write-Output "Architecture:  $ImageArch" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
             Write-Output ""
+
+            If ($ImageName -like "*Windows 11*")
+            {
+                $global:WindowsVersion = "W11"
+            }
+            ElseIf ($ImageName -like "*Windows 10*")
+            {
+                $global:WindowsVersion = "W10"
+            }
             Start-Sleep 3
             If ($IsESD -eq $True)
             {
@@ -1733,7 +1843,7 @@ Function Get-OSWIMFromISO
                 $global:OSVersion = $global:OSVersionFull.Substring(0, $global:OSVersionFull.LastIndexOf('.'))
                 If (($global:OSVersion -like "10.0.18362*") -or ($global:OSVersion -like "10.0.19041*"))
                 {
-                    Write-Output "$ImagePath contains image version $global:OSVersion, validating if H1 or H2 build of $global:OSVersion - checking..." | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                    Write-Output "$ImagePath contains image version $global:OSVersion, validating build..." | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
                     Write-Output ""
                     Write-Output "Mounting $ImagePath in $ScratchMountFolder..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
                     Mount-WindowsImage -ImagePath $ImagePath -Index $ImageIndex -Path $ScratchMountFolder -ReadOnly | Out-Null
@@ -1742,6 +1852,7 @@ Function Get-OSWIMFromISO
                     & reg.exe load "HKLM\Mount" "$ScratchMountFolder\Windows\system32\config\SOFTWARE"
                     $Key = "HKLM:\Mount\Microsoft\Windows NT\CurrentVersion"
                     $global:ReleaseId = (Get-ItemProperty -Path $Key -Name ReleaseId).ReleaseId
+                    $global:CurrentBuild = (Get-ItemProperty -Path $Key -Name CurrentBuild).CurrentBuild
                     Start-Sleep 5
                     Write-Output "Unloading image registry..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
                     & reg.exe unload "HKLM\Mount"
@@ -1754,18 +1865,33 @@ Function Get-OSWIMFromISO
                     {
                         $global:OSVersion = "10.0.18363"
                     }
-                    # Specific 20H2 check as it will report as 10.0.19041 still when offline
+                    # Specific 20H2/21H1/21H2 check as it will report as 10.0.19041 still when offline
                     If ($global:ReleaseId -eq "2009")
                     {
-                        $global:OSVersion = "10.0.19042"
+                        If ($global:CurrentBuild -eq "19042")
+                        {
+                            $global:OSVersion = "10.0.19042"
+                            $global:ReleaseID = "20H2"
+                        }
+                        ElseIf ($global:CurrentBuild -eq "19043")
+                        {
+                            $global:OSVersion = "10.0.19043"
+                            $global:ReleaseID = "21H1"
+                        }
+                        ElseIf ($global:CurrentBuild -eq "19044")
+                        {
+                            $global:OSVersion = "10.0.19044"
+                            $global:ReleaseID = "21H2"
+                        }
                     }
                 }
                 Else
                 {
                     $global:ReleaseId = Switch ($global:OSVersion)
                     {
-                        10.0.17763 {"1809"}
-                        10.0.19041 {"2004"}
+                        10.0.17763 {"1809"} # Windows 10 RS5
+                        10.0.19041 {"2004"} # Windows 10 20H1
+                        10.0.22000 {"21H2"} # Windows 11 21H2
                     }
                 }
 
@@ -1784,12 +1910,14 @@ Function Get-OSWIMFromISO
         }
     }
 
+
     If ($OSImageFound -eq $False)
     {
         Dismount-DiskImage -ImagePath $ISO | Out-Null
         Write-Output "$OSSKU not found in $WIMs on $ISO.  Please make sure to use an ISO file that contains $OSSKU, and try again." | Receive-Output -Color Red -BGColor Black -LogLevel 3 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
         Exit
     }
+
 
     If (!(Test-Path "$Mount"))
     {
@@ -1806,43 +1934,48 @@ Function Get-OSWIMFromISO
         New-Item -path "$DestinationFolder\$OSSKU" -ItemType "directory" | Out-Null
     }
 
-    If (!(Test-Path "$DestinationFolder\$OSSKU\$global:OSVersion"))
+    If (!(Test-Path "$DestinationFolder\$OSSKU\$global:WindowsVersion"))
     {
-        New-Item -path "$DestinationFolder\$OSSKU\$global:OSVersion" -ItemType "directory" | Out-Null
+        New-Item -path "$DestinationFolder\$OSSKU\$global:WindowsVersion" -ItemType "directory" | Out-Null
     }
 
-    If (!(Test-Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture"))
+    If (!(Test-Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion"))
     {
-        New-Item -path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture" -ItemType "directory" | Out-Null
+        New-Item -path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion" -ItemType "directory" | Out-Null
     }
 
-    If (Test-Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp")
+    If (!(Test-Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture"))
     {
-        Write-Output "Deleting $DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-        Get-ChildItem -Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp" -Recurse -Filter *.wim | Remove-Item -Force -Recurse
-        Remove-Item -Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp" -Force -Recurse
-    }
-    If (!(Test-Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp"))
-    {
-        New-Item -path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp" -ItemType "directory" | Out-Null
+        New-Item -path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture" -ItemType "directory" | Out-Null
     }
 
-    If (!(Test-Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs"))
+    If (Test-Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp")
     {
-        New-Item -path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs" -ItemType "directory" | Out-Null
+        Write-Output "Deleting $DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Get-ChildItem -Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp" -Recurse -Filter *.wim | Remove-Item -Force -Recurse
+        Remove-Item -Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp" -Force -Recurse
+    }
+    If (!(Test-Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp"))
+    {
+        New-Item -path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp" -ItemType "directory" | Out-Null
     }
 
-    If (Test-Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs\install.wim")
+    If (!(Test-Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs"))
     {
-        Write-Output "Deleting $DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs\install.wim..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-        Remove-Item -Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs\install.wim" -Force
+        New-Item -path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs" -ItemType "directory" | Out-Null
+    }
+
+    If (Test-Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs\install.wim")
+    {
+        Write-Output "Deleting $DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs\install.wim..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Remove-Item -Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs\install.wim" -Force
         Start-Sleep 5
     }
     
-    If (Test-Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs\boot.wim")
+    If (Test-Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs\boot.wim")
     {
-        Write-Output "Deleting $DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs\boot.wim..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-        Remove-Item -Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs\boot.wim" -Force
+        Write-Output "Deleting $DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs\boot.wim..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Remove-Item -Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs\boot.wim" -Force
         Start-Sleep 5
     }
 
@@ -1855,9 +1988,9 @@ Function Get-OSWIMFromISO
         $Arch = "arm64"
     }
 
-    Write-Output "Copying $WindowsKitsInstall\Windows Preinstallation Environment\$Arch\en-us\winpe.wim to $DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs\boot.wim..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-    Copy-Item -Path "$WindowsKitsInstall\Windows Preinstallation Environment\$Arch\en-us\winpe.wim" -Destination "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs\boot.wim"
-    $SourceBootWIMs = Get-ChildItem -Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs" -filter boot.wim -Recurse
+    Write-Output "Copying $WindowsKitsInstall\Windows Preinstallation Environment\$Arch\en-us\winpe.wim to $DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs\boot.wim..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+    Copy-Item -Path "$WindowsKitsInstall\Windows Preinstallation Environment\$Arch\en-us\winpe.wim" -Destination "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs\boot.wim"
+    $SourceBootWIMs = Get-ChildItem -Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs" -filter boot.wim -Recurse
     ForEach ($SourceBootWIM in $SourceBootWIMs)
     {
         $TempBootWIM = $SourceBootWIM.FullName
@@ -1872,24 +2005,24 @@ Function Get-OSWIMFromISO
 
     If ($DotNet35 -eq $true)
     {
-        If (Test-Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\sxs")
+        If (Test-Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\sxs")
         {
-            Write-Output "Deleting $DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\sxs..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-            Get-ChildItem -Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\sxs" -Recurse | Remove-Item -Force -Recurse
-            Remove-Item -Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\sxs" -Force
+            Write-Output "Deleting $DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\sxs..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+            Get-ChildItem -Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\sxs" -Recurse | Remove-Item -Force -Recurse
+            Remove-Item -Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\sxs" -Force
         }
-        If (!(Test-Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\sxs"))
+        If (!(Test-Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\sxs"))
         {
-            New-Item -path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\sxs" -ItemType "directory" | Out-Null
+            New-Item -path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\sxs" -ItemType "directory" | Out-Null
         }
-        Write-Output "Copying $Drive\Sources\sxs\* to $DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\sxs\..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-        Copy-Item -Path "$Drive\Sources\sxs\*" -Destination "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\sxs" -PassThru | Set-ItemProperty -Name IsReadOnly -Value $false
+        Write-Output "Copying $Drive\Sources\sxs\* to $DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\sxs\..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Copy-Item -Path "$Drive\Sources\sxs\*" -Destination "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\sxs" -PassThru | Set-ItemProperty -Name IsReadOnly -Value $false
     }
 
     If ($IsESD -eq $True)
     {
-        Write-Output "Copying $TempWIM to $DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs\install.wim..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-        Copy-Item -Path $TempWIM -Destination "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs" -PassThru | Set-ItemProperty -Name IsReadOnly -Value $false
+        Write-Output "Copying $TempWIM to $DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs\install.wim..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Copy-Item -Path $TempWIM -Destination "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs" -PassThru | Set-ItemProperty -Name IsReadOnly -Value $false
         Start-Sleep 2
     }
     Else
@@ -1897,8 +2030,8 @@ Function Get-OSWIMFromISO
         ForEach ($WIM in $WIMs)
         {
             $TempWIM = $WIM.FullName
-            Write-Output "Copying $TempWIM to $DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs\install.wim..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-            Copy-Item -Path $TempWIM -Destination "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs" -PassThru | Set-ItemProperty -Name IsReadOnly -Value $false
+            Write-Output "Copying $TempWIM to $DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs\install.wim..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+            Copy-Item -Path $TempWIM -Destination "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs" -PassThru | Set-ItemProperty -Name IsReadOnly -Value $false
             Start-Sleep 2
         }
     }
@@ -2176,7 +2309,7 @@ Function TattooRegistry
         [string]$SplitImage
     )
 
-    $TempPath = "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp"
+    $TempPath = "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp"
 
     & reg.exe load "HKLM\Mount" "$ImageMountFolder\Windows\system32\config\SOFTWARE"
     Start-Sleep 2
@@ -2802,7 +2935,7 @@ Function Update-Win10WIM
 
         # Export the new WinRE image back to original location
         Write-Output "Exporting $TmpWinREImage to $ImageMountFolder\Windows\System32\Recovery\winre.wim..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-        Export-WindowsImage -SourceImagePath $TmpWinREImage -SourceName "Microsoft Windows Recovery Environment (x64)" -DestinationImagePath "$ImageMountFolder\Windows\System32\Recovery\winre.wim" -CheckIntegrity
+        Export-WindowsImage -SourceImagePath $TmpWinREImage -SourceIndex "1" -DestinationImagePath "$ImageMountFolder\Windows\System32\Recovery\winre.wim" -CheckIntegrity
         Start-Sleep 2
         Write-Output ""
         Write-Output ""
@@ -2832,13 +2965,13 @@ Function Update-Win10WIM
         }
         If ($Device)
         {
-            $RefImage = "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\$Device-Install-$Build-$OSSKU-$Now.wim"
-            $SplitImage = "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\$Device-Install-$Build-$OSSKU-$Now--Split.swm"
+            $RefImage = "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\$Device-Install-$Build-$OSSKU-$Now.wim"
+            $SplitImage = "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\$Device-Install-$Build-$OSSKU-$Now--Split.swm"
         }
         Else
         {
-            $RefImage = "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Generic-Install-$Build-$OSSKU-$Now.wim"
-            $SplitImage = "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Generic-Install-$Build-$OSSKU-$Now--Split.swm"
+            $RefImage = "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Generic-Install-$Build-$OSSKU-$Now.wim"
+            $SplitImage = "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Generic-Install-$Build-$OSSKU-$Now--Split.swm"
         }
 
         Write-Output "Adding registry tattoo..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
@@ -3083,11 +3216,11 @@ Function Update-Win10WIM
         $WinPEBuild = (Get-Item $BootImageMountFolder\Windows\System32\ntoskrnl.exe).VersionInfo.ProductVersion
         If ($Device)
         {
-            $RefBootImage = "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\$Device-Boot-$WinPEBuild-$Now.wim"
+            $RefBootImage = "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\$Device-Boot-$WinPEBuild-$Now.wim"
         }
         Else
         {
-            $RefBootImage = "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Generic-Boot-$WinPEBuild-$Now.wim"
+            $RefBootImage = "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Generic-Boot-$WinPEBuild-$Now.wim"
         }
 
 
@@ -3118,26 +3251,26 @@ Function Update-Win10WIM
     # Make a USB key or ISO
     If (($MakeUSBMedia) -or ($MakeISOMedia))
     {
-        If (Test-Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media")
+        If (Test-Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\Media")
         {
-            Write-Output "Deleting $DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media\..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-            Get-ChildItem -Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media" -Recurse | Remove-Item -Force -Recurse
-            Remove-Item -Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media" -Force
+            Write-Output "Deleting $DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\Media\..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+            Get-ChildItem -Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\Media" -Recurse | Remove-Item -Force -Recurse
+            Remove-Item -Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\Media" -Force
         }
-        If (!(Test-Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media"))
+        If (!(Test-Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\Media"))
         {
-            New-Item -path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media" -ItemType "directory" | Out-Null
+            New-Item -path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\Media" -ItemType "directory" | Out-Null
         }
 
-        If (Test-Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\fwfiles")
+        If (Test-Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\fwfiles")
         {
-            Write-Output "Deleting $DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\fwfiles\..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-            Get-ChildItem -Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\fwfiles" -Recurse | Remove-Item -Force -Recurse
-            Remove-Item -Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\fwfiles" -Force
+            Write-Output "Deleting $DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\fwfiles\..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+            Get-ChildItem -Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\fwfiles" -Recurse | Remove-Item -Force -Recurse
+            Remove-Item -Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\fwfiles" -Force
         }
-        If (!(Test-Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\fwfiles"))
+        If (!(Test-Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\fwfiles"))
         {
-            New-Item -path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\fwfiles" -ItemType "directory" | Out-Null
+            New-Item -path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\fwfiles" -ItemType "directory" | Out-Null
         }
 
         If ($Architecture -eq "x64")
@@ -3149,21 +3282,21 @@ Function Update-Win10WIM
             $Arch = "arm64"
         }
 
-        Write-Output "Creating WinPE media in $DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-        & xcopy.exe /herky "$WindowsKitsInstall\Windows Preinstallation Environment\$Arch\Media" "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media"
-        Copy-Item -Path "$WindowsKitsInstall\Deployment Tools\$Arch\Oscdimg\efisys.bin" -Destination "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\fwfiles"
-        Copy-Item -Path "$WindowsKitsInstall\Deployment Tools\$Arch\Oscdimg\etfsboot.com" -Destination "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\fwfiles"
+        Write-Output "Creating WinPE media in $DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\Media..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        & xcopy.exe /herky "$WindowsKitsInstall\Windows Preinstallation Environment\$Arch\Media" "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\Media"
+        Copy-Item -Path "$WindowsKitsInstall\Deployment Tools\$Arch\Oscdimg\efisys.bin" -Destination "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\fwfiles"
+        Copy-Item -Path "$WindowsKitsInstall\Deployment Tools\$Arch\Oscdimg\etfsboot.com" -Destination "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\fwfiles"
 
-        If (!(Test-Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media\Sources"))
+        If (!(Test-Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\Media\Sources"))
         {
-            New-Item -Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media\sources" -ItemType Directory | Out-Null
+            New-Item -Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\Media\sources" -ItemType Directory | Out-Null
         }
-        Copy-Item -Path $RefBootImage -Destination "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media\sources\boot.wim"
-        Copy-Item -Path "$WorkingDirPath\UsbImage\CreatePartitions-UEFI.txt" -Destination "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media"
-        Copy-Item -Path "$WorkingDirPath\UsbImage\CreatePartitions-UEFI_Source.txt" -Destination "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media"
-        Copy-Item -Path "$WorkingDirPath\UsbImage\Imaging.ps1" -Destination "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media"
-        Copy-Item -Path "$WorkingDirPath\UsbImage\Install.cmd" -Destination "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media"
-        Copy-Item -Path "$WorkingDirPath\UsbImage\startnet.cmd" -Destination "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media"
+        Copy-Item -Path $RefBootImage -Destination "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\Media\sources\boot.wim"
+        Copy-Item -Path "$WorkingDirPath\UsbImage\CreatePartitions-UEFI.txt" -Destination "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\Media"
+        Copy-Item -Path "$WorkingDirPath\UsbImage\CreatePartitions-UEFI_Source.txt" -Destination "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\Media"
+        Copy-Item -Path "$WorkingDirPath\UsbImage\Imaging.ps1" -Destination "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\Media"
+        Copy-Item -Path "$WorkingDirPath\UsbImage\Install.cmd" -Destination "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\Media"
+        Copy-Item -Path "$WorkingDirPath\UsbImage\startnet.cmd" -Destination "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\Media"
         
         If ($MakeUSBMedia)
         {
@@ -3228,11 +3361,11 @@ Function Update-Win10WIM
 
                     Write-Output "Copying WinPE Media contents to $NewUSBDriveLetter..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
                     & bootsect.exe /nt60 $NewUSBDriveLetter /force /mbr
-                    & xcopy /herky "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media" $NewUSBDriveLetter
+                    & xcopy /herky "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\Media" $NewUSBDriveLetter
     
                     If ($SplitWIM -eq $True)
                     {
-                        $SplitWIMs = Get-ChildItem -Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture" -Filter *install*$Now*.swm -Recurse
+                        $SplitWIMs = Get-ChildItem -Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture" -Filter *install*$Now*.swm -Recurse
                         ForEach ($TempWIM in $SplitWIMs)
                         {
                             $TempSplitWIM = $TempWIM.FullName
@@ -3252,14 +3385,14 @@ Function Update-Win10WIM
         If ($MakeISOMedia)
         {
             $oscdimg = "$WindowsKitsInstall\Deployment Tools\$Arch\Oscdimg\oscdimg.exe"
-            $efisys = "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\fwfiles\efisys.bin"
-            $etfsboot = "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\fwfiles\etfsboot.com"
-            $MediaSource = "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp\Media"
-            $args = "-l$Device -bootdata:2#p0,e,b$etfsboot#pEF,e,b$efisys -m -u1 -udfver102 $MediaSource $DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\$Device-$Build-$Now.iso"
+            $efisys = "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\fwfiles\efisys.bin"
+            $etfsboot = "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\fwfiles\etfsboot.com"
+            $MediaSource = "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\Media"
+            $args = "-l$Device -bootdata:2#p0,e,b$etfsboot#pEF,e,b$efisys -m -u1 -udfver102 $MediaSource $DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\$Device-$Build-$Now.iso"
             
             If ($SplitWIM -eq $True)
             {
-                $SplitWIMs = Get-ChildItem -Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture" -Filter *install*$Now*.swm -Recurse
+                $SplitWIMs = Get-ChildItem -Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture" -Filter *install*$Now*.swm -Recurse
                 ForEach ($TempWIM in $SplitWIMs)
                 {
                     $TempSplitWIM = $TempWIM.FullName
@@ -3289,14 +3422,14 @@ Function Update-Win10WIM
     Write-Output " " | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
     Start-Sleep 2
 
-    Set-Location -Path "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture"
+    Set-Location -Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture"
     Write-Output "Finalized image files can be found here:" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
     Write-Output ""
     If ($CreateISO)
     {
-        If (Test-Path("$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\$Device-$Build-$Now.iso"))
+        If (Test-Path("$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\$Device-$Build-$Now.iso"))
         {
-            Write-Output "ISO:      $DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\$Device-$Build-$Now.iso" | Receive-Output -Color Green -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+            Write-Output "ISO:      $DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\$Device-$Build-$Now.iso" | Receive-Output -Color Green -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
             Write-Output ""
         }
     }
@@ -3334,8 +3467,8 @@ $Script_Start_Time = (Get-Date).ToShortDateString()+", "+(Get-Date).ToLongTimeSt
 $Now = Get-Date -Format yyyy-MM-dd_HH-mm-ss
 
 # Start logging
-$SourcePath = "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs"
-$TempFolder = "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp"
+$SourcePath = "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs"
+$TempFolder = "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp"
 $LogFilePath = "$DestinationFolder\Logs"
 $LogFileName = "Log--$OSSKU-$Architecture--$Now.log"
 Start-Log -FilePath $LogFilePath -FileName $LogFileName
@@ -3402,6 +3535,7 @@ Write-Output "  Servicing Stack:            $ServicingStack" | Receive-Output -C
 Write-Output "  Cumulative Update:          $CumulativeUpdate" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output "  Cumulative DotNet Updates:  $CumulativeDotNetUpdate" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output "  Adobe Flash Player Updates: $AdobeFlashUpdate" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+Write-Output "  Out-Of-Band Updates:        $OOBUpdate" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output "  Office 365 install:         $Office365" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 If ($Device)
 {
@@ -3422,14 +3556,14 @@ Start-Sleep 2
 Get-OSWIMFromISO -ISO $ISO -OSSKU $OSSKU -DestinationFolder $DestinationFolder -Architecture $Architecture -WindowsKitsInstall $WindowsKitsInstall -ScratchMountFolder $ScratchMountFolder
 Start-Sleep 2
 Write-Output "OSVersion:  $global:OSVersion" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-Write-Output "ReleaseId:  $global:ReleaseId" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+#Write-Output "ReleaseId:  $global:ReleaseId" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output ""
 Start-Sleep 5
 
 
 # Variables needed after Get-OSWIMFromISO finishes, passed to Update-Win10WIM
-$SourcePath = "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\SourceWIMs"
-$TempFolder = "$DestinationFolder\$OSSKU\$global:OSVersion\$Architecture\Temp"
+$SourcePath = "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs"
+$TempFolder = "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp"
 $ImageMountFolder = "$Mount\OSImage"
 $BootImageMountFolder = "$Mount\BootImage"
 $WinREImageMountFolder = "$Mount\WinREImage"
@@ -3493,7 +3627,6 @@ If ($CumulativeUpdate -eq $True)
 }
 
 
-
 # Download any components requested
 If ($Device)
 {
@@ -3513,20 +3646,35 @@ If ($ServicingStack -eq $True)
     Get-ServicingStackUpdates -TempFolder $TempFolder
 }
 
+PAUSE
+
 If ($CumulativeUpdate -eq $True)
 {
     Get-CumulativeUpdates -TempFolder $TempFolder
 }
+
+PAUSE
 
 If ($DotNet35 -eq $True)
 {
     Get-CumulativeDotNetUpdates -TempFolder $TempFolder
 }
 
+PAUSE
+
 If ($AdobeFlashUpdate -eq $True)
 {
 	Get-AdobeFlashUpdates -TempFolder $TempFolder
 }
+
+PAUSE
+
+If ($OOBUpdate -eq $True)
+{
+	Get-OOBUpdates -TempFolder $TempFolder
+}
+
+PAUSE
 
 
 # Add Servicing Stack / Cumulative updates and necessary drivers to install.wim, winre.wim, and boot.wim

@@ -26,7 +26,7 @@ Please use this GitHub Repos issue tracking capability to raise issues or featur
  - To create a Windows 10 Professional image:
     X:\SurfaceDeploymentAccelerator\CreateSurfaceWindowsImage.ps1 -ISO "X:\en_windows_10_business_editions_version_2004_x64_dvd_d06ef8c5.iso" -OSSKU Pro -DestinationFolder C:\Output -Device SurfaceHub2
 
- - To create a Windows 10 Enterprise image for use on a Surface Hub 2:
+ - To create a Windows Enterprise image for use on a Surface Hub 2:
     X:\SurfaceDeploymentAccelerator\CreateSurfaceWindowsImage.ps1 -ISO "X:\en_windows_10_business_editions_version_2004_x64_dvd_d06ef8c5.iso" -OSSKU Enterprise -DestinationFolder C:\Output -Device SurfaceHub2
 
 - To create an image WITHOUT any additional patches downloaded/injected for a Surface Laptop 3:
@@ -78,7 +78,7 @@ The parameters that are supported to configure for the script are as follows:
  
  -Office365:                  Download and install the latest monthly C2R installation of Office 365, True or False.  True is the default.
  
- -Device:                     Enter Surface device type to download and inject latest drivers for.  Possible values: SurfacePro4, SurfacePro5, SurfacePro6, SurfacePro7, SurfaceLaptop, SurfaceLaptop2, SurfaceLaptop3, SurfaceBook, SurfaceBook2, SurfaceBook3, SurfaceStudio, SurfaceStudio2, SurfaceGo, SurfaceGoLTE, SurfaceGo2, and SurfaceHub2.  If this parameter is not specified, SurfacePro7 is used.
+ -Device:                     Enter Surface device type to download and inject latest drivers for.  Possible values: SurfacePro4, SurfacePro5, SurfacePro6, SurfacePro7, SurfacePro7Plus, SurfacePro8, SurfaceLaptop, SurfaceLaptop2, SurfaceLaptop3Intel, SurfaceLaptop3AMD, SurfaceLaptop4Intel, SurfaceLaptop4AMD, SurfaceLaptopGo, SurfaceLaptopStudio, SurfaceBook, SurfaceBook2, SurfaceBook3, SurfaceStudio, SurfaceStudio2, SurfaceGo, SurfaceGoLTE, SurfaceGo2, SurfaceGo3, SurfaceHub2, and Custom.  If this parameter is not specified, SurfacePro8 is used.
 
  -CreateUSB:                  Create bootable USB installation when finished, True or False.  True is the default.
 
