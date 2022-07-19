@@ -453,7 +453,7 @@
                 <Driver name="surfaceserialhubdriver.inf"/>
                 <Driver name="surfacestoragefwupdateenum.inf"/>
                 <Driver name="surfacestoragefwupdatekbg40zns256gpackage.inf"/>
-                <Driver name="surfacewakeontouchcontrol.inf">
+                <Driver name="surfacewakeontouchcontrol.inf"/>
             </Drivers>
         </SurfaceLaptopStudio>
         <SurfaceStudio>
