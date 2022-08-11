@@ -10,8 +10,11 @@
 
 .NOTES
     Author:       Microsoft
-    Last Update:  30th November 2021
-    Version:      1.3.0.0
+    Last Update:  11 August 2022
+    Version:      1.3.0.1
+
+    Version 1.3.0.1
+    - Fixed Microsoft Update Catalog downloads 
 
     Version 1.3.0.0
     - Added support for Surface Laptop Studio
@@ -811,6 +814,7 @@ Function Download-LatestUpdates
             $downloaddialog = $downloaddialog.Replace('www.download.windowsupdate', 'download.windowsupdate')
             $DLWUDOTCOM = ($downloaddialog | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } } ).source
             $DLDELDOTCOM = ($downloaddialog | Select-String -AllMatches -Pattern "(http[s]?\://dl\.delivery\.mp\.microsoft\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } } ).source
+            $DLCATWUDOTCOM = ($downloaddialog | Select-String -AllMatches -Pattern "(http[s]?\://catalog\.s\.download\.windowsupdate\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } } ).source
 
             If ($DLWUDOTCOM)
             {
@@ -820,7 +824,11 @@ Function Download-LatestUpdates
             {
                 $links = $DLDELDOTCOM
             }
-
+            If ($DLCATWUDOTCOM)
+            {
+                $links = $DLCATWUDOTCOM
+            }
+	    
             If ($links)
             {
                 $updatesFound = $true
