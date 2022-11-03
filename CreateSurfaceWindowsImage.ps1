@@ -1898,7 +1898,7 @@ Function Get-OSWIMFromISO
                 If (!($global:ReleaseID))
                 {
                     Write-Output "Unknown Windows release found ( $global:OSVersion ), aborting." | Receive-Output -Color Red -BGColor Black -LogLevel 3 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-                    Write-Outupt ""
+                    Write-Output ""
                     Exit
                 }
             }
