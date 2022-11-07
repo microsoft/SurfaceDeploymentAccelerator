@@ -1883,6 +1883,16 @@ Function Get-OSWIMFromISO
                             $global:OSVersion = "10.0.19044"
                             $global:ReleaseID = "21H2"
                         }
+                        ElseIf ($global:CurrentBuild -eq "19045")
+                        {
+                            $global:OSVersion = "10.0.19045"
+                            $global:ReleaseID = "22H2"
+                        }
+                        ElseIf ($global:CurrentBuild -eq "22621")
+                        {
+                            $global:OSVersion = "10.0.22621"
+                            $global:ReleaseID = "22H2"
+                        }
                     }
                 }
                 Else
