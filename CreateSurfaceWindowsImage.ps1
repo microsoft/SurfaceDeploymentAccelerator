@@ -172,7 +172,7 @@ Param(
         Mandatory=$False,
         HelpMessage="Surface device type to add drivers to image for, if not specified no drivers injected - Custom can be used if using with a non-Surface device"
         )]
-        [ValidateSet('SurfacePro4', 'SurfacePro5', 'SurfacePro6', 'SurfacePro7', 'SurfacePro7Plus', 'SurfacePro8', 'SurfaceLaptop', 'SurfaceLaptop2', 'SurfaceLaptop3Intel', 'SurfaceLaptop3AMD', 'SurfaceLaptop4Intel', 'SurfaceLaptop4AMD', 'SurfaceLaptopGo', 'SurfaceLaptopStudio', 'SurfaceBook', 'SurfaceBook2', 'SurfaceBook3', 'SurfaceStudio', 'SurfaceStudio2', 'SurfaceGo', 'SurfaceGoLTE', 'SurfaceGo2', 'SurfaceGo3', 'SurfaceHub2', 'Custom')]
+        [ValidateSet('SurfacePro4', 'SurfacePro5', 'SurfacePro6', 'SurfacePro7', 'SurfacePro7Plus', 'SurfacePro8', 'SurfacePro9', 'SurfaceLaptop', 'SurfaceLaptop2', 'SurfaceLaptop3Intel', 'SurfaceLaptop3AMD', 'SurfaceLaptop4Intel', 'SurfaceLaptop4AMD', 'SurfaceLaptop5', 'SurfaceLaptopGo', 'SurfaceLaptopStudio', 'SurfaceBook', 'SurfaceBook2', 'SurfaceBook3', 'SurfaceStudio', 'SurfaceStudio2', 'SurfaceStudio2Plus', 'SurfaceGo', 'SurfaceGoLTE', 'SurfaceGo2', 'SurfaceGo3', 'SurfaceHub2', 'Custom')]
         [string]$Device = "SurfacePro8",
 
     [Parameter(
