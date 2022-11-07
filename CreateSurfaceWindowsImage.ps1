@@ -1865,7 +1865,7 @@ Function Get-OSWIMFromISO
                     {
                         $global:OSVersion = "10.0.18363"
                     }
-                    # Specific 20H2/21H1/21H2 check as it will report as 10.0.19041 still when offline
+                    # Specific 20H2/21H1/21H2/22H2 check as it will report as 10.0.19041 still when offline
                     If ($global:ReleaseId -eq "2009")
                     {
                         If ($global:CurrentBuild -eq "19042")
