@@ -10,8 +10,12 @@
 
 .NOTES
     Author:       Microsoft
-    Last Update:  30th November 2021
-    Version:      1.3.0.0
+    Last Update:  8th November 2022
+    Version:      1.3.1.0
+
+    Version 1.3.1.0
+    - Added support for Windows 11 22H2
+    - Added support for Windows 10 22H2
 
     Version 1.3.0.0
     - Added support for Surface Laptop Studio
@@ -241,7 +245,7 @@ Param(
 
 
 
-$SDAVersion = "1.3.0.0"
+$SDAVersion = "1.3.1.0"
 $OutputEncoding = [console]::InputEncoding = [console]::OutputEncoding = New-Object System.Text.UTF8Encoding
 Add-Type –AssemblyName System.Speech
 $SpeechSynthesizer = New-Object –TypeName System.Speech.Synthesis.SpeechSynthesizer
