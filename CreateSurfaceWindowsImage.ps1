@@ -1892,11 +1892,6 @@ Function Get-OSWIMFromISO
                             $global:OSVersion = "10.0.19045"
                             $global:ReleaseID = "22H2"
                         }
-                        ElseIf ($global:CurrentBuild -eq "22621")
-                        {
-                            $global:OSVersion = "10.0.22621"
-                            $global:ReleaseID = "22H2"
-                        }
                     }
                 }
                 Else
@@ -1906,6 +1901,7 @@ Function Get-OSWIMFromISO
                         10.0.17763 {"1809"} # Windows 10 RS5
                         10.0.19041 {"2004"} # Windows 10 20H1
                         10.0.22000 {"21H2"} # Windows 11 21H2
+                        10.0.22621 {"22H2"} # Windows 11 22H2
                     }
                 }
 
