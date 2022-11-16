@@ -1892,6 +1892,11 @@ Function Get-OSWIMFromISO
                             $global:OSVersion = "10.0.19045"
                             $global:ReleaseID = "22H2"
                         }
+                        ElseIf ($global:CurrentBuild -eq "22621")
+                        {
+                            $global:OSVersion = "10.0.22621"
+                            $global:ReleaseID = "22H2"
+                        }
                     }
                 }
                 Else
@@ -1908,7 +1913,7 @@ Function Get-OSWIMFromISO
                 If (!($global:ReleaseID))
                 {
                     Write-Output "Unknown Windows release found ( $global:OSVersion ), aborting." | Receive-Output -Color Red -BGColor Black -LogLevel 3 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-                    Write-Outupt ""
+                    Write-Output ""
                     Exit
                 }
             }
