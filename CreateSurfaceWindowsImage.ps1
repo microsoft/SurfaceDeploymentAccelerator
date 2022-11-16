@@ -3354,7 +3354,7 @@ Function Update-Win10WIM
                     }
                     Else
                     {
-                        $NewUSBDriveLetter = New-Partition -DiskNumber $TempUSB -UseMaximumSize -AssignDriveLetter | Format-Volume -FileSystem FAT32 -NewFileSystemLabel $Device
+                        $NewUSBDriveLetter = New-Partition -DiskNumber $TempUSB -Size 14GB -AssignDriveLetter | Format-Volume -FileSystem FAT32 -NewFileSystemLabel $Device
                     }
 
                     $NewUSBDriveLetter = $NewUSBDriveLetter.DriveLetter + ":"
