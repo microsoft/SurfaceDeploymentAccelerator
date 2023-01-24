@@ -125,6 +125,7 @@ Param(
         )]
         [bool]$DotNet35 = $True,
 
+        # Remove and reorganize orders 
     [Parameter(
         Position=6,
         Mandatory=$False,
@@ -146,6 +147,7 @@ Param(
         )]
         [bool]$CumulativeDotNetUpdate = $True,
 
+         # Remove
     [Parameter(
         Position=9,
         Mandatory=$False,
@@ -697,7 +699,7 @@ Function Get-DownloadDialogText
 }
 
 
-
+# Remove Servicing & Adobe parameters
 Function Download-LatestUpdates
 {
     Param(
@@ -741,6 +743,7 @@ Function Download-LatestUpdates
     
     If ($Windows -eq "Windows 10")
     {
+        # Remove and remove function parameter
         If ($Servicing)
         {
             $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Servicing Stack Update for Windows 10*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
@@ -753,6 +756,7 @@ Function Download-LatestUpdates
         {
             $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Cumulative Update for .NET Framework*") -and ($_.description -like "*Windows 10*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
         }
+         # Remove and remove function parameter
         If ($Adobe)
         {
             $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Security Update for Adobe Flash Player for Windows 10*") -and ($_.description -like "*$OSBuild*")  -and ($_.description -like "*$Architecture*")}
@@ -764,6 +768,7 @@ Function Download-LatestUpdates
     }
     ElseIf ($Windows -eq "Windows 11")
     {
+           # Remove and remove function parameter
         If ($Servicing)
         {
             $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Servicing Stack Update for Windows*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
@@ -776,6 +781,7 @@ Function Download-LatestUpdates
         {
             $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Cumulative Update for .NET Framework*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
         }
+         # Remove and remove function parameter
         If ($Adobe)
         {
             $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Security Update for Adobe Flash Player for Windows*") -and ($_.description -like "*$OSBuild*")  -and ($_.description -like "*$Architecture*")}
@@ -892,6 +898,7 @@ Function Get-LatestUpdates
     $AdobeURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Security Update for Adobe Flash Player for " + $Windows + " " + $Architecture + " " + $OSBuild
     $OOBURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Update for " + $Windows + " for " + $Architecture + "-based Systems "
 
+    # Remove
     If ($Servicing)
     {
         Write-Output "Attempting to find and download Servicing Stack updates for $Architecture $Windows version $OSBuild for month $Date..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
@@ -991,6 +998,7 @@ Function Get-LatestUpdates
         $Date = Get-Date -Format "yyyy-MM"
         $LoopBreak = $null
     }
+    # Remove
     If ($Adobe)
     {
         Write-Output "Attempting to find and download Adobe Flash Player updates for $Architecture $Windows version $OSBuild for month $Date..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
@@ -1580,7 +1588,7 @@ Function Get-OOBUpdates
 }
 
 
-
+ # Remove a
 Function Get-AdobeFlashUpdates
 {
     Param(
@@ -1630,7 +1638,7 @@ Function Get-CumulativeUpdates
 }
 
 
-
+   # Remove 
 Function Get-ServicingStackUpdates
 {
     Param(
@@ -2363,6 +2371,7 @@ Function TattooRegistry
         }
     }
     
+    # Remove
     If ($ServicingStack -eq $true)
     {
         $PathToScan = "$TempPath\Servicing"
@@ -2405,6 +2414,7 @@ Function TattooRegistry
         }
     }
 
+     # Remove
     If ($AdobeFlashUpdate -eq $true)
     {
         $PathToScan = "$TempPath\Adobe"
@@ -2666,6 +2676,7 @@ Function Update-Win10WIM
             Start-Sleep 2
         }
 
+         # Remove
         If ($ServicingStack -eq $true)
         {
             $SSU = Get-ChildItem -Path $ServicingStackPath
@@ -2714,6 +2725,7 @@ Function Update-Win10WIM
             }
         }
         
+         # Remove
         If ($AdobeFlashUpdate -eq $true)
         {
             $AFU = Get-ChildItem -Path $AdobeFlashUpdatePath
@@ -2850,6 +2862,7 @@ Function Update-Win10WIM
         Write-Output ""
         Write-Output ""
 
+        # Remove
         If ($ServicingStack)
         {
             $SSU = Get-ChildItem -Path $ServicingStackPath
@@ -3531,9 +3544,11 @@ Write-Output "OS SKU:                       $OSSKU" | Receive-Output -Color Whit
 Write-Output "Architecture:                 $Architecture" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output "Output:                       $DestinationFolder" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output "  .NET 3.5:                   $DotNet35" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+# Remove
 Write-Output "  Servicing Stack:            $ServicingStack" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output "  Cumulative Update:          $CumulativeUpdate" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output "  Cumulative DotNet Updates:  $CumulativeDotNetUpdate" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+# Remove
 Write-Output "  Adobe Flash Player Updates: $AdobeFlashUpdate" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output "  Out-Of-Band Updates:        $OOBUpdate" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output "  Office 365 install:         $Office365" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
@@ -3615,11 +3630,13 @@ Else
 # If installing DotNet 3.5, the latest updates are also required - override any user parameters
 If ($DotNet35 -eq $True)
 {
+    # Remove
     $ServicingStack = $True
     $CumulativeUpdate = $True
     $CumulativeDotNetUpdate = $True
 }
 
+# Remove
 # Latest Servicing Stack is likely needed (if it exists) for the latest Cumulative Update to install successfully
 If ($CumulativeUpdate -eq $True)
 {
@@ -3641,6 +3658,7 @@ If ($Office365 -eq $True)
 # We always need the VC Runtimes for our devices
 Get-LatestVCRuntimes -TempFolder $TempFolder
 
+# Remove
 If ($ServicingStack -eq $True)
 {
     Get-ServicingStackUpdates -TempFolder $TempFolder
@@ -3662,6 +3680,7 @@ If ($DotNet35 -eq $True)
 
 PAUSE
 
+ # Remove
 If ($AdobeFlashUpdate -eq $True)
 {
 	Get-AdobeFlashUpdates -TempFolder $TempFolder
@@ -3676,7 +3695,7 @@ If ($OOBUpdate -eq $True)
 
 PAUSE
 
-
+# Remove Servicing & Adobe parts
 # Add Servicing Stack / Cumulative updates and necessary drivers to install.wim, winre.wim, and boot.wim
 Update-Win10WIM -SourcePath $SourcePath -SourceName $OSSKU -ServicingStack $ServicingStack -CumulativeUpdate $CumulativeUpdate -DotNet35 $DotNet35 -CumulativeDotNetUpdate $CumulativeDotNetUpdate -AdobeFlashUpdate $AdobeFlashUpdate -ImageMountFolder $ImageMountFolder -BootImageMountFolder $BootImageMountFolder -WinREImageMountFolder $WinREImageMountFolder -TempFolder $TempFolder -WindowsKitsInstall $WindowsKitsInstall -UpdateBootWIM $UpdateBootWIM -MakeUSBMedia $CreateUSB -MakeISOMedia $CreateISO
 
