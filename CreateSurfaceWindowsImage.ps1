@@ -811,6 +811,7 @@ Function Download-LatestUpdates
             $downloaddialog = $downloaddialog.Replace('www.download.windowsupdate', 'download.windowsupdate')
             $DLWUDOTCOM = ($downloaddialog | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } } ).source
             $DLDELDOTCOM = ($downloaddialog | Select-String -AllMatches -Pattern "(http[s]?\://dl\.delivery\.mp\.microsoft\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } } ).source
+            $DLCATWUDOTCOM = ($downloaddialog | Select-String -AllMatches -Pattern "(http[s]?\://catalog\.s\.download\.windowsupdate\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } }).source
 
             If ($DLWUDOTCOM)
             {
@@ -820,6 +821,11 @@ Function Download-LatestUpdates
             {
                 $links = $DLDELDOTCOM
             }
+            If ($DLCATWUDOTCOM)
+            {
+                $links = $DLCATWUDOTCOM
+            }
+            
 
             If ($links)
             {
