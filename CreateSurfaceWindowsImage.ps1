@@ -10,8 +10,12 @@
 
 .NOTES
     Author:       Microsoft
-    Last Update:  30th November 2021
-    Version:      1.3.0.0
+    Last Update:  8th November 2022
+    Version:      1.3.1.0
+
+    Version 1.3.1.0
+    - Added support for Windows 11 22H2
+    - Added support for Windows 10 22H2
 
     Version 1.3.0.0
     - Added support for Surface Laptop Studio
@@ -227,7 +231,7 @@ Param(
 
 
 
-$SDAVersion = "1.3.0.0"
+$SDAVersion = "1.3.1.0"
 $OutputEncoding = [console]::InputEncoding = [console]::OutputEncoding = New-Object System.Text.UTF8Encoding
 Add-Type –AssemblyName System.Speech
 $SpeechSynthesizer = New-Object –TypeName System.Speech.Synthesis.SpeechSynthesizer
@@ -1710,7 +1714,7 @@ Function Get-OSWIMFromISO
                     {
                         $global:OSVersion = "10.0.18363"
                     }
-                    # Specific 20H2/21H1/21H2 check as it will report as 10.0.19041 still when offline
+                    # Specific 20H2/21H1/21H2/22H2 check as it will report as 10.0.19041 still when offline
                     If ($global:ReleaseId -eq "2009")
                     {
                         If ($global:CurrentBuild -eq "19042")
@@ -1728,6 +1732,16 @@ Function Get-OSWIMFromISO
                             $global:OSVersion = "10.0.19044"
                             $global:ReleaseID = "21H2"
                         }
+                        ElseIf ($global:CurrentBuild -eq "19045")
+                        {
+                            $global:OSVersion = "10.0.19045"
+                            $global:ReleaseID = "22H2"
+                        }
+                        ElseIf ($global:CurrentBuild -eq "22621")
+                        {
+                            $global:OSVersion = "10.0.22621"
+                            $global:ReleaseID = "22H2"
+                        }
                     }
                 }
                 Else
@@ -1737,13 +1751,14 @@ Function Get-OSWIMFromISO
                         10.0.17763 {"1809"} # Windows 10 RS5
                         10.0.19041 {"2004"} # Windows 10 20H1
                         10.0.22000 {"21H2"} # Windows 11 21H2
+                        10.0.22621 {"22H2"} # Windows 11 22H2
                     }
                 }
 
                 If (!($global:ReleaseID))
                 {
                     Write-Output "Unknown Windows release found ( $global:OSVersion ), aborting." | Receive-Output -Color Red -BGColor Black -LogLevel 3 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-                    Write-Outupt ""
+                    Write-Output ""
                     Exit
                 }
             }
@@ -3118,7 +3133,7 @@ Function Update-Win10WIM
                     }
                     Else
                     {
-                        $NewUSBDriveLetter = New-Partition -DiskNumber $TempUSB -UseMaximumSize -AssignDriveLetter | Format-Volume -FileSystem FAT32 -NewFileSystemLabel $Device
+                        $NewUSBDriveLetter = New-Partition -DiskNumber $TempUSB -Size 14GB -AssignDriveLetter | Format-Volume -FileSystem FAT32 -NewFileSystemLabel $Device
                     }
 
                     $NewUSBDriveLetter = $NewUSBDriveLetter.DriveLetter + ":"
