@@ -10,8 +10,12 @@
 
 .NOTES
     Author:       Microsoft
-    Last Update:  8th November 2022
-    Version:      1.3.1.0
+    Last Update:  25th January 2022
+    Version:      1.3.2.0
+
+    Version 1.3.2.0
+    - Remove Adobe Flash Player Security update.
+    - Remove Servicing Stack update.
 
     Version 1.3.1.0
     - Added support for Windows 11 22H2
