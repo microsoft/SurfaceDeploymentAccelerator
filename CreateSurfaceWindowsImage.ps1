@@ -147,7 +147,7 @@ Param(
         )]
         [bool]$CumulativeDotNetUpdate = $True,
 
-         # Remove
+        # Remove
     [Parameter(
         Position=9,
         Mandatory=$False,
@@ -1588,7 +1588,7 @@ Function Get-OOBUpdates
 }
 
 
- # Remove a
+ # Remove 
 Function Get-AdobeFlashUpdates
 {
     Param(
