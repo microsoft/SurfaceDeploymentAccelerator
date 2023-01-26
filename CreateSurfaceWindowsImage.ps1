@@ -247,7 +247,7 @@ Param(
         Mandatory=$False,
         HelpMessage="keep automation, default is true)"
         )]
-        [bool]$Automated = $True,
+        [bool]$Automated = $True
     )
 
 
