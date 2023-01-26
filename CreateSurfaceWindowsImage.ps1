@@ -125,7 +125,7 @@ Param(
     [Parameter(
         Position=5,
         Mandatory=$False,
-        HelpMessage="Install .NET 3.5 (bool true/false, default is false)"
+        HelpMessage="Install .NET 3.5 (bool true/false, default is true)"
         )]
         [bool]$DotNet35 = $True,
 
@@ -160,7 +160,7 @@ Param(
         [Parameter(
         Position=10,
         Mandatory=$False,
-        HelpMessage="Add latest Out-Of-Band/Non Security update (bool true/false, default is true)"
+        HelpMessage="Add latest Out-Of-Band/Non Security update (bool true/false, default is false)"
         )]
         [bool]$OOBUpdate = $False,
 
