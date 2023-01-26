@@ -95,3 +95,5 @@ The parameters that are supported to configure for the script are as follows:
  -UseLocalDriverPath          Use a local driver path and skip downloading the latest MSI for Device, True or False.  False is default.  If this parameter is set, you must also set LocalDriverPath to a valid path containing the extracted drivers you wish to inject, or this will fail.
 
  -LocalDriverPath             Filesystem (accessible to this PowerShell instance) path containing drivers to use.  Only read if UseLocalDriverPath is set to True.
+
+ -Automated                   Keep the scripts automated, if set to true scripts won't pause. True or False.  True is default.

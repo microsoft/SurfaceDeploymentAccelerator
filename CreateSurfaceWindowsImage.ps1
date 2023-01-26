@@ -240,7 +240,14 @@ Param(
         Mandatory=$False,
         HelpMessage="Path to an MSI or extracted driver folder - required if you set UseLocalDriverPath variable to true or script will not find any drivers to inject"
         )]
-        [string]$LocalDriverPath
+        [string]$LocalDriverPath,
+
+    [Parameter(
+        Position=22,
+        Mandatory=$False,
+        HelpMessage="keep automation, default is true)"
+        )]
+        [bool]$Automated = $True,
     )
 
 
@@ -3560,6 +3567,7 @@ If ($UseLocalDriverPath -eq $True)
 {
     Write-Output "  Use Local driver path:      $LocalDriverPath" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 }
+Write-Output "  Automated:                  $Automated" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output "  Create USB key:             $CreateUSB" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output "  Create ISO:                 $CreateISO" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output " " | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
@@ -3661,35 +3669,51 @@ If ($ServicingStack -eq $True)
     Get-ServicingStackUpdates -TempFolder $TempFolder
 }
 
-PAUSE
+If (!($Automated))
+{
+    PAUSE
+}
+
 
 If ($CumulativeUpdate -eq $True)
 {
     Get-CumulativeUpdates -TempFolder $TempFolder
 }
 
-PAUSE
+If (!($Automated))
+{
+    PAUSE
+}
 
 If ($DotNet35 -eq $True)
 {
     Get-CumulativeDotNetUpdates -TempFolder $TempFolder
 }
 
-PAUSE
+If (!($Automated))
+{
+    PAUSE
+}
 
 If ($AdobeFlashUpdate -eq $True)
 {
 	Get-AdobeFlashUpdates -TempFolder $TempFolder
 }
 
-PAUSE
+If (!($Automated))
+{
+    PAUSE
+}
 
 If ($OOBUpdate -eq $True)
 {
 	Get-OOBUpdates -TempFolder $TempFolder
 }
 
-PAUSE
+If (!($Automated))
+{
+    PAUSE
+}
 
 
 # Add Servicing Stack / Cumulative updates and necessary drivers to install.wim, winre.wim, and boot.wim
