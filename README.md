@@ -78,7 +78,7 @@ The parameters that are supported to configure for the script are as follows:
 
  -CreateUSB:                  Create bootable USB installation when finished, True or False.  True is the default.
 
- -CreateISO:                  Create bootable ISO file when finished, True or False.  False is the default.  This is useful for making imaging/scripting changes and testing quickly without needing USB keys and/or hardware to test.
+ -CreateISO:                  Create bootable ISO file when finished, True or False.  True is the default.
 
  -WindowsKitInstall:          Enter target location of Windows ADK installation.  If not specified, the path "${env:ProgramFiles(x86)}\Windows Kits\10\Assessment and Deployment Kit" will be used.
 
