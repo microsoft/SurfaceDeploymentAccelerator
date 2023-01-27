@@ -10,8 +10,11 @@
 
 .NOTES
     Author:       Microsoft
-    Last Update:  8th November 2022
-    Version:      1.3.1.0
+    Last Update:  27th January 2023
+    Version:      1.3.2.0
+
+    Version 1.3.2.0
+    - Inserted Fix for Microsoft Update Catalog downloads by Fvbor
 
     Version 1.3.1.0
     - Added support for Windows 11 22H2
@@ -815,6 +818,7 @@ Function Download-LatestUpdates
             $downloaddialog = $downloaddialog.Replace('www.download.windowsupdate', 'download.windowsupdate')
             $DLWUDOTCOM = ($downloaddialog | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } } ).source
             $DLDELDOTCOM = ($downloaddialog | Select-String -AllMatches -Pattern "(http[s]?\://dl\.delivery\.mp\.microsoft\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } } ).source
+            $DLCATWUDOTCOM = ($downloaddialog | Select-String -AllMatches -Pattern "(http[s]?\://catalog\.s\.download\.windowsupdate\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } }).source
 
             If ($DLWUDOTCOM)
             {
@@ -823,6 +827,10 @@ Function Download-LatestUpdates
             If ($DLDELDOTCOM)
             {
                 $links = $DLDELDOTCOM
+            }
+            If ($DLCATWUDOTCOM)
+            {
+                $links = $DLCATWUDOTCOM
             }
 
             If ($links)
