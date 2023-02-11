@@ -14,8 +14,8 @@
     Version:      1.3.3.0
 
     Version 1.3.3.0
-    - Added support for Surface Pro 9
-    - Added support for Surface Laptop 5.
+    - Added support for Surface Pro 9 Intel
+    - Added support for Surface Laptop 5
 
     Version 1.3.2.0
     - Inserted Fix for Microsoft Update Catalog downloads by Fvbor
