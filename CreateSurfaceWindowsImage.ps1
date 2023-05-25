@@ -1336,7 +1336,7 @@ Function Get-LatestDrivers
     Write-Output ""
     Write-Output ""
 
-    If (!($Device) -or ($Device -eq "Custom"))
+    If (!($Device))
     {
         Write-Output "Surface device not specified. Skipping driver download." | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
         return
@@ -1391,6 +1391,12 @@ Function Get-LatestDrivers
     }
     Else
     {
+        If ($Device -eq "Custom")
+        {
+            Write-Output "Surface device not specified. Skipping driver download..." | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+            return
+        } 
+
         Write-Output "Downloading latest drivers for $Device ..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
         $OSBuild = New-Object string (,@($global:OSVersion.ToCharArray() | Select-Object -Last 5))
 
@@ -1431,7 +1437,12 @@ Function Get-LatestDrivers
         Write-Output ""
     }
 
-    If ($Device -eq "SurfaceHub2")
+    If ($Device -eq "Custom")
+    {
+        Write-Output "Surface device not specified. Skipping driver download..." | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        return
+    } 
+    ElseIf ($Device -eq "SurfaceHub2")
     {
         Write-Output "Downloading latest WinUSB drivers for $Device..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
         Get-LatestWinUSBDrivers -Device $Device -TempFolder $TempFolder
