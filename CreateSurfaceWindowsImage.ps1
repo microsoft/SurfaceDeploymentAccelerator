@@ -4,14 +4,18 @@
 
 .DESCRIPTION
     This script creates a Surface Windows image, including Office 365 and requisite Visual C runtime libraries as required.
-    
+
 .EXAMPLE
     .\CreateSurfaceWindowsImage.ps1 -ISO <ISO path> -OSSKU Pro -DestinationFolder "C:\Temp" -Device SurfacePro7
 
 .NOTES
     Author:       Microsoft
     Last Update:  27th January 2023
-    Version:      1.3.2.0
+    Version:      1.3.3.0
+
+    Version 1.3.3.0
+    - Remove Adobe Flash Player Security update.
+    - Remove Servicing Stack update.
 
     Version 1.3.2.0
     - Inserted Fix for Microsoft Update Catalog downloads by Fvbor
@@ -52,10 +56,10 @@
     Version 1.2.5.2
     - Split prereq installation check into two checks for ADK installation to avoid WinPE not installed bug after ADK install check succeeds
     - Office 365 does not install if not passed full path parameter, added explicit check and handler
-    
+
     Version 1.2.5.1
     - Fixed typos in code causing first-run errors
-    
+
     Version 1.2.5
     - Prevent usage of spaces in file paths for DestinationFolder and LocalDriverPath
     - Prevent script from executing if prior execution failed at a specific point
@@ -135,47 +139,33 @@ Param(
     [Parameter(
         Position=6,
         Mandatory=$False,
-        HelpMessage="Add latest servicing stack update (bool true/false, default is true)"
-        )]
-        [bool]$ServicingStack = $True,
-
-    [Parameter(
-        Position=7,
-        Mandatory=$False,
         HelpMessage="Add latest cumulative update (bool true/false, default is true)"
         )]
         [bool]$CumulativeUpdate = $True,
 
     [Parameter(
-        Position=8,
+        Position=7,
         Mandatory=$False,
         HelpMessage="Add latest cumulative .NET update (bool true/false, default is true)"
         )]
         [bool]$CumulativeDotNetUpdate = $True,
 
-    [Parameter(
-        Position=9,
-        Mandatory=$False,
-        HelpMessage="Add latest Adobe Flash Player Security update (bool true/false, default is true)"
-        )]
-        [bool]$AdobeFlashUpdate = $True,
-
         [Parameter(
-        Position=10,
+        Position=8,
         Mandatory=$False,
         HelpMessage="Add latest Out-Of-Band/Non Security update (bool true/false, default is false)"
         )]
         [bool]$OOBUpdate = $False,
 
     [Parameter(
-        Position=11,
+        Position=9,
         Mandatory=$False,
         HelpMessage="Add Office 365 C2R (bool true/false, default is true)"
         )]
         [bool]$Office365 = $True,
 
     [Parameter(
-        Position=12,
+        Position=10,
         Mandatory=$False,
         HelpMessage="Surface device type to add drivers to image for, if not specified no drivers injected - Custom can be used if using with a non-Surface device"
         )]
@@ -183,63 +173,63 @@ Param(
         [string]$Device = "SurfacePro8",
 
     [Parameter(
-        Position=13,
+        Position=11,
         Mandatory=$False,
         HelpMessage="Create USB key when finished (bool true/false, default is true)"
         )]
         [bool]$CreateUSB = $True,
 
     [Parameter(
-        Position=14,
+        Position=12,
         Mandatory=$False,
         HelpMessage="Create bootable ISO file (useful for testing) when finished (bool true/false, default is true)"
         )]
         [bool]$CreateISO = $True,
 
     [Parameter(
-        Position=15,
+        Position=13,
         Mandatory=$False,
         HelpMessage="Location of Windows ADK installation"
         )]
         [string]$WindowsKitsInstall = "${env:ProgramFiles(x86)}\Windows Kits\10\Assessment and Deployment Kit",
 
     [Parameter(
-        Position=16,
+        Position=14,
         Mandatory=$False,
         HelpMessage="Use BITS for downloads"
         )]
         [bool]$BITSTransfer = $True,
 
     [Parameter(
-        Position=17,
+        Position=15,
         Mandatory=$False,
         HelpMessage="Edit Install.wim"
         )]
         [bool]$InstallWIM = $True,
 
     [Parameter(
-        Position=18,
+        Position=16,
         Mandatory=$False,
         HelpMessage="Edit boot.wim"
         )]
         [bool]$BootWIM = $True,
 
     [Parameter(
-        Position=19,
+        Position=17,
         Mandatory=$False,
         HelpMessage="Keep original unsplit WIM even if resulting image size >4GB (bool true false, default is true)"
         )]
         [bool]$KeepOriginalWIM = $True,
 
     [Parameter(
-        Position=20,
+        Position=18,
         Mandatory=$False,
         HelpMessage="Use a local driver path instead of downloading an MSI (bool true false, default is false)"
         )]
         [bool]$UseLocalDriverPath = $False,
 
     [Parameter(
-        Position=21,
+        Position=19,
         Mandatory=$False,
         HelpMessage="Path to an MSI or extracted driver folder - required if you set UseLocalDriverPath variable to true or script will not find any drivers to inject"
         )]
@@ -264,7 +254,7 @@ Function Start-Log
         [Parameter(Mandatory = $True)]
         [String]$FileName
     )
-	
+
     Try
     {
         If (!(Test-Path $FilePath))
@@ -277,7 +267,7 @@ Function Start-Log
         {
             New-Item -Path "$FilePath\$FileName" -ItemType "file"
         }
-		
+
 	    ## Set the global variable to be used as the FilePath for all subsequent Write-Log calls in this session
 	    $global:ScriptLogFilePath = "$FilePath\$FileName"
     }
@@ -295,7 +285,7 @@ Function Write-Log
     Param (
         [Parameter(Mandatory = $True)]
         [String]$Message,
-		
+
         [Parameter(Mandatory = $False)]
         # 1 == "Informational"
         # 2 == "Warning'
@@ -398,7 +388,7 @@ Function Get-RedirectedUrl
     $Response = $Request.GetResponse()
 
     If ($Response.ResponseUri)
-    {        
+    {
         $Response.GetResponseHeader("Location")
     }
     $Response.Close()
@@ -525,7 +515,7 @@ Function PrereqCheck
         Write-Output "`$LocalDriverPath cannot contain spaces: $LocalDriverPath" | Receive-Output -Color Red -BGColor Black -LogLevel 3 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
         Exit
     }
-    
+
     # Check for admin rights
     CheckIfRunAsAdmin
 
@@ -541,7 +531,7 @@ Function PrereqCheck
         Write-Output "$Env:Computername Aborting script..." | Receive-Output -Color Red -BGColor Black -LogLevel 3 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
         Exit
     }
-    
+
     # Validating that the ADK Deployment Tools are installed
     If (!(Test-Path $DISMFile))
     {
@@ -562,11 +552,11 @@ Function PrereqCheck
             $uninstall32 = Get-ChildItem "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" | ForEach { gp $_.PSPath } | ? { $_ -like "*Windows Assessment and Deployment Kit - Windows 10*" } | select UninstallString
             $uninstall64 = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" | ForEach { gp $_.PSPath } | ? { $_ -like "*Windows Assessment and Deployment Kit - Windows 10*" } | select UninstallString
 
-            If ($uninstall64) 
+            If ($uninstall64)
             {
                 ForEach ($u in $uninstall64)
                 {
-                    $u = $u.UninstallString -Replace "/uninstall","" 
+                    $u = $u.UninstallString -Replace "/uninstall",""
                     $u = $u.Trim()
                     Write-Output "Removing old 64bit ADK components.  Command is $u and args are /uninstall /quiet" | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
                     Start-Process -filepath $u -argumentlist "/uninstall /quiet" -wait
@@ -588,7 +578,7 @@ Function PrereqCheck
             {
                 $SourceFilePath = $(Get-Item $SourceFile).FullName
                 Write-Output "Found Installation files for ADK at $SourceFilePath" | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-            }	
+            }
             Else
             {
                 Check-Internet
@@ -636,11 +626,11 @@ Function PrereqCheck
             $uninstall32 = Get-ChildItem "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" | ForEach { gp $_.PSPath } | ? { $_ -like "*Windows Assessment and Deployment Kit Windows Preinstallation Environment Add-ons - Windows 10*" } | select UninstallString
             $uninstall64 = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" | ForEach { gp $_.PSPath } | ? { $_ -like "*Windows Assessment and Deployment Kit Windows Preinstallation Environment Add-ons - Windows 10*" } | select UninstallString
 
-            If ($uninstall64) 
+            If ($uninstall64)
             {
                 ForEach ($u in $uninstall64)
                 {
-                    $u = $u.UninstallString -Replace "/uninstall","" 
+                    $u = $u.UninstallString -Replace "/uninstall",""
                     $u = $u.Trim()
                     Write-Output "Removing old 64bit ADK WinPE components.  Command is $u and args are /uninstall /quiet" | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
                     Start-Process -filepath $u -argumentlist "/uninstall /quiet" -wait
@@ -662,7 +652,7 @@ Function PrereqCheck
             {
                 $SourceFilePath = $(Get-Item $SourceFile).FullName
                 Write-Output "Found Installation files for ADK WinPE at $SourceFilePath" | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-            }	
+            }
             Else
             {
                 Check-Internet
@@ -676,7 +666,7 @@ Function PrereqCheck
             {
                 Write-Output "Installing Windows Assessment and Deployment Kit Windows Preinstallation Environment Add-Ons" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
                 Start-Process -File  $SourceFilePath -Arg $WinPEArguments -passthru | Wait-Process
-  
+
                 Write-Output  "$AppName - ADK WinPE Add-Ons INSTALLATION SUCCESSFULLY COMPLETED" | Receive-Output -Color Green -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
                 Write-Output  ""
             }
@@ -699,10 +689,9 @@ Function Get-DownloadDialogText
         $Text,
         $Pattern
     )
-    
+
     return [regex]::Match($Text, $Pattern + "\s?'?(.*?)'?;").Groups[1].Value
 }
-
 
 
 Function Download-LatestUpdates
@@ -711,10 +700,8 @@ Function Download-LatestUpdates
         $uri,
         $Path,
         $Date,
-        $Servicing,
         $Cumulative,
         $CumulativeDotNet,
-        $Adobe,
         $OOB,
         $Windows,
         $OSBuild
@@ -745,13 +732,9 @@ Function Download-LatestUpdates
             }
         }
     }
-    
+
     If ($Windows -eq "Windows 10")
     {
-        If ($Servicing)
-        {
-            $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Servicing Stack Update for Windows 10*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
-        }
         If ($Cumulative)
         {
             $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Cumulative Update for Windows 10*") -and -not ($_.description -like "*Dynamic*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
@@ -760,10 +743,6 @@ Function Download-LatestUpdates
         {
             $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Cumulative Update for .NET Framework*") -and ($_.description -like "*Windows 10*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
         }
-        If ($Adobe)
-        {
-            $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Security Update for Adobe Flash Player for Windows 10*") -and ($_.description -like "*$OSBuild*")  -and ($_.description -like "*$Architecture*")}
-        }
         If ($OOB)
         {
             $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Update for Windows 10*") -and -not ($_.description -like "*Dynamic*") -and -not ($_.description -like "*Cumulative*") -and ($_.description -like "*$Architecture*")}
@@ -771,10 +750,6 @@ Function Download-LatestUpdates
     }
     ElseIf ($Windows -eq "Windows 11")
     {
-        If ($Servicing)
-        {
-            $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Servicing Stack Update for Windows*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
-        }
         If ($Cumulative)
         {
             $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Cumulative Update for*") -and -not ($_.description -like "*Dynamic Cumulative Update for*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
@@ -783,21 +758,17 @@ Function Download-LatestUpdates
         {
             $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Cumulative Update for .NET Framework*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
         }
-        If ($Adobe)
-        {
-            $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Security Update for Adobe Flash Player for Windows*") -and ($_.description -like "*$OSBuild*")  -and ($_.description -like "*$Architecture*")}
-        }
         If ($OOB)
         {
             $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Update for*") -and -not ($_.description -like "*Dynamic*") -and -not ($_.description -like "*Cumulative*") -and ($_.description -like "*$Windows*") -and ($_.description -like "*$Architecture*")}
         }
     }
-    
+
 
     $scriptblock = {
         $guid = $_.Guid
         $itemtitle = $_.description
-        
+
         $post = @{ size = 0; updateID = $guid; uidInfo = $guid } | ConvertTo-Json -Compress
         $body = @{ updateIDs = "[$post]" }
         Invoke-WebRequest -Uri 'https://www.catalog.update.microsoft.com/DownloadDialog.aspx' -Method Post -Body $body | Select-Object -ExpandProperty Content
@@ -850,7 +821,7 @@ Function Download-LatestUpdates
             }
         }
     }
-    
+
     If (!($updatesFound))
     {
         $global:KBGUID = $null
@@ -862,10 +833,8 @@ Function Download-LatestUpdates
 Function Get-LatestUpdates
 {
     Param(
-        $Servicing = $False,
         $Cumulative = $False,
         $CumulativeDotNet = $False,
-        $Adobe = $False,
         $OOB = $False,
         $Windows,
         $Path,
@@ -892,56 +861,21 @@ Function Get-LatestUpdates
     {
         New-Item -path "$Path" -ItemType "directory" | Out-Null
     }
-    
+
     If (!($Date))
     {
         $Date = Get-Date -Format "yyyy-MM"
     }
-    
-    $ServicingURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Servicing Stack " + $Architecture + " " + $Windows + " " + $OSBuild
+
     $CumulativeURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Cumulative update for " + $Windows + " for " + $Architecture + "-based Systems " + $OSBuild
     $CumulativeDotNetURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Cumulative update for .NET Framework " + $Windows + " " + $Architecture + " " + $OSBuild
-    $AdobeURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Security Update for Adobe Flash Player for " + $Windows + " " + $Architecture + " " + $OSBuild
     $OOBURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Update for " + $Windows + " for " + $Architecture + "-based Systems "
 
-    If ($Servicing)
-    {
-        Write-Output "Attempting to find and download Servicing Stack updates for $Architecture $Windows version $OSBuild for month $Date..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-        $uri = $ServicingURI
-        Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $True -Cumulative $False -CumulativeDotNet $False -Adobe $False -OOB $False -Windows $Windows -OSBuild $OSBuild
-        If (!($global:KBGUID))
-        {
-            While (!($global:KBGUID))
-            {
-                If ($LoopBreak -le 5)
-                {
-                    $LoopBreak++
-                    Start-Sleep 1
-                    $NewDate = (Get-Date).AddMonths(-$LoopBreak)
-                    $NewDate = $NewDate.ToString("yyyy-MM")
-                    Write-Output "No update found for month ($Date) - attempting previous month ($NewDate)..." | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-
-                    $Date = $NewDate
-                    $ServicingURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Servicing Stack " + $Architecture + " " + $Windows + " " + $OSBuild
-
-                    $uri = $ServicingURI
-                    Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $True -Cumulative $False -CumulativeDotNet $False -Adobe $False -OOB $False -Windows $Windows -OSBuild $OSBuild
-                }
-                Else
-                {
-                    Write-Output "Unable to find update for past $LoopBreak months of searches.  Continuing..." | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-                    Break
-                }
-            }
-        }
-        $LoopBreak = $null
-        $Date = Get-Date -Format "yyyy-MM"
-    }
     If ($Cumulative)
     {
         Write-Output "Attempting to find and download Cumulative Update updates for $Architecture $Windows version $OSBuild for month $Date..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
         $uri = $CumulativeURI
-        Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $False -Cumulative $True -CumulativeDotNet $False -Adobe $False -OOB $False -Windows $Windows -OSBuild $OSBuild
+        Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Cumulative $True -CumulativeDotNet $False -OOB $False -Windows $Windows -OSBuild $OSBuild
         If (!($global:KBGUID))
         {
             While (!($global:KBGUID))
@@ -958,7 +892,7 @@ Function Get-LatestUpdates
                     $CumulativeURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Cumulative update for " + $Windows + " for " + $Architecture + "-based Systems " + $OSBuild
 
                     $uri = $CumulativeURI
-                    Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $False -Cumulative $True -CumulativeDotNet $False -Adobe $False -OOB $False -Windows $Windows -OSBuild $OSBuild
+                    Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Cumulative $True -CumulativeDotNet $False -OOB $False -Windows $Windows -OSBuild $OSBuild
                 }
                 Else
                 {
@@ -974,7 +908,7 @@ Function Get-LatestUpdates
     {
         Write-Output "Attempting to find and download Cumulative .NET Framework Update updates for $Architecture $Windows version $OSBuild for month $Date..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
         $uri = $CumulativeDotNetURI
-        Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $False -Cumulative $False -CumulativeDotNet $True -Adobe $False -OOB $False -Windows $Windows -OSBuild $OSBuild
+        Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Cumulative $False -CumulativeDotNet $True -OOB $False -Windows $Windows -OSBuild $OSBuild
         If (!($global:KBGUID))
         {
             While (!($global:KBGUID))
@@ -991,7 +925,7 @@ Function Get-LatestUpdates
                     $CumulativeDotNetURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Cumulative update for .NET Framework " + $Windows + " " + $Architecture + " " + $OSBuild
 
                     $uri = $CumulativeDotNetURI
-                    Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $False -Cumulative $False -CumulativeDotNet $True -Adobe $False -OOB $False -Windows $Windows -OSBuild $OSBuild
+                    Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Cumulative $False -CumulativeDotNet $True -OOB $False -Windows $Windows -OSBuild $OSBuild
                 }
                 Else
                 {
@@ -1003,44 +937,11 @@ Function Get-LatestUpdates
         $Date = Get-Date -Format "yyyy-MM"
         $LoopBreak = $null
     }
-    If ($Adobe)
-    {
-        Write-Output "Attempting to find and download Adobe Flash Player updates for $Architecture $Windows version $OSBuild for month $Date..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-        $uri = $AdobeURI
-        Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $False -Cumulative $False -CumulativeDotNet $False -Adobe $True -OOB $False -OSBuild $OSBuild
-        If (!($global:KBGUID))
-        {
-            While (!($global:KBGUID))
-            {
-                If ($LoopBreak -le 11)
-                {
-                    $LoopBreak++
-                    Start-Sleep 1
-                    $NewDate = (Get-Date).AddMonths(-$LoopBreak)
-                    $NewDate = $NewDate.ToString("yyyy-MM")
-                    Write-Output "No update found for month ($Date) - attempting previous month ($NewDate)..." | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-
-                    $Date = $NewDate
-                    $AdobeURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Security Update for Adobe Flash Player for " + $Windows + " " + $Architecture + " " + $OSBuild
-
-                    $uri = $AdobeURI
-                    Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $False -Cumulative $False -CumulativeDotNet $False -Adobe $True -OOB $False -Windows $Windows -OSBuild $OSBuild
-                }
-                Else
-                {
-                    Write-Output "Unable to find update for past $LoopBreak month's of searches.  Continuing..." | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-                    Break
-                }
-            }
-        }
-        $Date = Get-Date -Format "yyyy-MM"
-        $LoopBreak = $null   
-    }
     If ($OutOfBand)
     {
         Write-Output "Attempting to find and download Out-of-band/Non-security updates for $Architecture $Windows version $OSBuild for month $Date..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
         $uri = $OOBURI
-        Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $False -Cumulative $False -CumulativeDotNet $False -Adobe $False -OOB $True -Windows $Windows -OSBuild $OSBuild
+        Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Cumulative $False -CumulativeDotNet $False -OOB $True -Windows $Windows -OSBuild $OSBuild
         If (!($global:KBGUID))
         {
             While (!($global:KBGUID))
@@ -1057,7 +958,7 @@ Function Get-LatestUpdates
                     $OOBURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Update for " + $Windows + " for " + $Architecture + "-based Systems "
 
                     $uri = $OOBURI
-                    Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Servicing $False -Cumulative $False -CumulativeDotNet $False -Adobe $False -OOB $True -Windows $Windows -OSBuild $OSBuild
+                    Download-LatestUpdates -uri $uri -Path $Path -Date $Date -Cumulative $False -CumulativeDotNet $False -OOB $True -Windows $Windows -OSBuild $OSBuild
                 }
                 Else
                 {
@@ -1067,7 +968,7 @@ Function Get-LatestUpdates
             }
         }
         $Date = Get-Date -Format "yyyy-MM"
-        $LoopBreak = $null   
+        $LoopBreak = $null
     }
 }
 
@@ -1145,7 +1046,7 @@ Function Get-LatestSurfaceEthernetDrivers
                 }
             }
         }
-        
+
         # Return a hard-coded array member for now until this settles out - changeover from "Surface - NET" to "Realtek - Net" causes issues with # of returns and version info changes
         #$global:KBGUID = $guids | Where-Object {($_.description -like "*Realtek - Net - 10.45.0308.2021*")}
         $global:KBGUID = $guids[0]
@@ -1154,7 +1055,7 @@ Function Get-LatestSurfaceEthernetDrivers
             $guid = $_.Guid
             $itemtitle = $_.description
             $guid
-        
+
             $post = @{ size = 0; updateID = $guid; uidInfo = $guid } | ConvertTo-Json -Compress
             $body = @{ updateIDs = "[$post]" }
             Invoke-WebRequest -Uri 'https://www.catalog.update.microsoft.com/DownloadDialog.aspx' -Method Post -Body $body | Select-Object -ExpandProperty Content
@@ -1271,11 +1172,11 @@ Function Get-LatestWinUSBDrivers
         {
             $kb = $Object.kbId
             $curTxt = $Object.description
-    
+
             ##Create Post Request to get the Download URL of the Update
             $Post = @{ size = 0; updateID = $kb; uidInfo = $kb } | ConvertTo-Json -Compress
             $PostBody = @{ updateIDs = "[$Post]" }
-    
+
             ## Fetch and parse the download URL
             $PostRes = (Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -Method Post -Body $postBody).content
             $DownloadLinks = ($PostRes | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } } ).source
@@ -1428,7 +1329,7 @@ Function Get-LatestDrivers
         {
             $URL = "https://aka.ms/" + $Device + "/" + $OSBuild
         }
-        
+
         $DownloadedFile = DownloadFile -URL $URL -Path "$DeviceDriverPath"
         Write-Output "Downloaded File: $DownloadedFile" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 
@@ -1528,7 +1429,7 @@ Function Get-Office365
     {
         Write-Output "Deleting $Office365Path\..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
         Get-ChildItem -Path "$Office365Path" -Recurse | Remove-Item -Force -Recurse
-        Remove-Item -Path "$Office365Path" -Force    
+        Remove-Item -Path "$Office365Path" -Force
     }
     If (!(Test-Path "$Office365Path"))
     {
@@ -1536,7 +1437,7 @@ Function Get-Office365
     }
 
     Write-Output "Downloading Office 365 $Office365SKU..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-    
+
     $Office365OfflineURL = "https://aka.ms/sdao365"
 
     $Office365TempFile = DownloadFile -URL $Office365OfflineURL -Path "$Office365Path"
@@ -1559,7 +1460,7 @@ Function Get-Office365
         $O365ProPlusConfigurationXMLPath = "$WorkingDirPath\O365_Configuration.xml"
         Copy-Item -Path $O365ProPlusDownloadXMLPath -Destination $Office365Path
         Copy-Item -Path $O365ProPlusConfigurationXMLPath -Destination $Office365Path
-        
+
         $TempFile = "$Office365Path\O365_Download.xml"
         If (Test-Path $TempFile)
         {
@@ -1603,32 +1504,6 @@ Function Get-OOBUpdates
 }
 
 
-
-Function Get-AdobeFlashUpdates
-{
-    Param(
-        [string]$TempFolder
-    )
-
-    $adobeUpdatePath = "$TempFolder\Adobe"
-
-    If (Test-Path "$adobeUpdatePath")
-    {
-        Write-Output "Deleting $adobeUpdatePath\..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-        Get-ChildItem -Path "$adobeUpdatePath" -Recurse | Remove-Item -Force -Recurse
-        Remove-Item -Path "$adobeUpdatePath" -Force
-    }
-    If (!(Test-Path "$adobeUpdatePath"))
-    {
-        New-Item -path "$adobeUpdatePath" -ItemType "directory" | Out-Null
-    }
-
-    Write-Output "Downloading latest Adobe Flash update for $global:OSVersion..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-    Get-LatestUpdates -Adobe $True -Path $adobeUpdatePath -Windows $global:WindowsVersion -OSBuild $global:ReleaseId -Architecture $Architecture
-}
-
-
-
 Function Get-CumulativeUpdates
 {
     Param(
@@ -1651,32 +1526,6 @@ Function Get-CumulativeUpdates
     Write-Output "Downloading latest Cumulative Update for $global:OSVersion..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
     Get-LatestUpdates -Cumulative $True -Path $CumulativeUpdatePath -Windows $global:WindowsVersion -OSBuild $global:ReleaseId -Architecture $Architecture
 }
-
-
-
-Function Get-ServicingStackUpdates
-{
-    Param(
-        [string]$TempFolder
-    )
-
-    $ServicingStackPath = "$TempFolder\Servicing"
-
-    If (Test-Path "$ServicingStackPath")
-    {
-        Write-Output "Deleting $ServicingStackPath\..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-        Get-ChildItem -Path "$ServicingStackPath" -Recurse | Remove-Item -Force -Recurse
-        Remove-Item -Path "$ServicingStackPath" -Force
-    }
-    If (!(Test-Path "$ServicingStackPath"))
-    {
-        New-Item -Path "$ServicingStackPath" -ItemType "directory" | Out-Null
-    }
-
-    Write-Output "Downloading latest Servicing Stack update for $global:OSVersion..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-    Get-LatestUpdates -Servicing $True -Path $ServicingStackPath -Windows $global:WindowsVersion -OSBuild $global:ReleaseId -Architecture $Architecture
-}
-
 
 
 Function Get-CumulativeDotNetUpdates
@@ -1734,7 +1583,7 @@ Function Get-OSWIMFromISO
     If ($ISOPath)
     {
         Write-Output "ISO successfully mounted at $Drive" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-        Write-Output ""   
+        Write-Output ""
     }
     Else
     {
@@ -1756,11 +1605,11 @@ Function Get-OSWIMFromISO
         Dismount-DiskImage -ImagePath $ISO | Out-Null
         Exit
     }
-    
+
     ForEach ($WIM in $WIMs)
     {
         $TempWIM = $WIM.FullName
-        
+
         # Handle different language support as per issue #1 (https://github.com/microsoft/SurfaceDeploymentAccelerator/issues/1)
         $OSImages = Get-WindowsImage -ImagePath $TempWIM
 
@@ -1818,7 +1667,7 @@ Function Get-OSWIMFromISO
             {
                 $ImageArch = "ARM64"
             }
-            
+
             Write-Output "Found image matching $OSSKU :" | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
             Write-Output "Path:          $ImagePath" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
             Write-Output "Index:         $ImageIndex" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
@@ -2005,7 +1854,7 @@ Function Get-OSWIMFromISO
         Remove-Item -Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs\install.wim" -Force
         Start-Sleep 5
     }
-    
+
     If (Test-Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs\boot.wim")
     {
         Write-Output "Deleting $DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs\boot.wim..." | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
@@ -2069,7 +1918,7 @@ Function Get-OSWIMFromISO
             Start-Sleep 2
         }
     }
-    
+
     If ($TmpESDConvertWIM -eq $Null)
     {
         # Do Nothing
@@ -2169,7 +2018,7 @@ Function UpdateMenu
             Write-Host -ForegroundColor White "$itemCount ] $line"
         }
     }
-    
+
     $viewSelection = $selection+1
     Write-Host -ForegroundColor White ("-"*($MenuTitle.Length + 4))
     If ($HelperText) {
@@ -2197,7 +2046,7 @@ Function Select-MenuItem
     )
 
     Clear-Host
-    
+
     #Menu input type defines
     $ENTER = 13
     $UPARROW = 38
@@ -2278,7 +2127,7 @@ Function Select-MenuItem
                 If ( $UserInput.Length -gt 1 ) {
                     $UserInput = $UserInput.Substring(0, $UserInput.Length-1)
                     $selection = ([int]$UserInput) - 1
-                }                
+                }
             }
         }
 
@@ -2294,8 +2143,8 @@ Function Select-USBDrive
     $usbDisks = Get-Disk | Where-Object BusType -eq USB | Where-Object isOffline -ne True | Sort-Object Size
     $DriveNumArray = @($usbDisks | Select-Object -ExpandProperty Number)
     $MenuArray = @()
-    $usbDisks | 
-    Select-Object -Property Number, FriendlyName, Size | 
+    $usbDisks |
+    Select-Object -Property Number, FriendlyName, Size |
         ForEach-Object {
             $VolumeLabel = (Get-Disk -Number $_.Number | Get-Partition | Get-Volume).FileSystemLabel
             $MenuArray += "DISK:$("{0:D3}" -f $_.Number) ($("{0:G5} GB" -f ($_.Size /1GB))) [$VolumeLabel] $($_.FriendlyName) "
@@ -2306,7 +2155,7 @@ Function Select-USBDrive
         Write-output " -- No USB key Found." | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
         Return $null
     }
-    
+
     $SelectIndex = Select-MenuItem -MenuTitle "Select USB Drive to format" -MenuItems $MenuArray
     $diskNumToFlash = $DriveNumArray[$SelectIndex]
     $diskName = $MenuArray[$SelectIndex]
@@ -2319,10 +2168,10 @@ Function Select-USBDrive
 Function New-RegKey
 {
     Param($key)
-  
+
     $key = $key -replace ':',''
     $parts = $key -split '\\'
-  
+
     $tempkey = ''
     $parts | ForEach-Object {
         $tempkey += ($_ + "\")
@@ -2350,14 +2199,12 @@ Function TattooRegistry
     $SDARegKey = "HKLM:\Mount\Microsoft\Surface\SDA"
     New-RegKey $SDARegKey
     Start-Sleep 2
-    
+
     $ISORegValue = Get-ItemProperty $SDARegKey ISO -ErrorAction SilentlyContinue
     $OSSKURegValue = Get-ItemProperty $SDARegKey OSSKU -ErrorAction SilentlyContinue
     $DotNet35RegValue = Get-ItemProperty $SDARegKey DotNet35 -ErrorAction SilentlyContinue
-    $ServicingStackRegValue = Get-ItemProperty $SDARegKey ServicingStackUpdate -ErrorAction SilentlyContinue
     $CumulativeUpdateRegValue = Get-ItemProperty $SDARegKey CumulativeUpdate -ErrorAction SilentlyContinue
     $CumulativeDotNetUpdateRegValue = Get-ItemProperty $SDARegKey CumulativeDotNetUpdate -ErrorAction SilentlyContinue
-    $AdobeFlashUpdateRegValue = Get-ItemProperty $SDARegKey AdobeFlashUpdate -ErrorAction SilentlyContinue
     $Office365RegValue = Get-ItemProperty $SDARegKey Office365 -ErrorAction SilentlyContinue
     $DeviceRegValue = Get-ItemProperty $SDARegKey Device -ErrorAction SilentlyContinue
     $DriverRegValue = Get-ItemProperty $SDARegKey Drivers -ErrorAction SilentlyContinue
@@ -2396,20 +2243,6 @@ Function TattooRegistry
             Set-ItemProperty -Path $SDARegKey -Name DotNet35 -Value $DotNet35
         }
     }
-    
-    If ($ServicingStack -eq $true)
-    {
-        $PathToScan = "$TempPath\Servicing"
-        $FileName = (Get-ChildItem -Path $PathToScan).Name
-        If ($ServicingStackRegValue -eq $null)
-        {
-            New-ItemProperty -Path $SDARegKey -Name ServicingStackUpdate -PropertyType STRING -Value $FileName | Out-Null
-        }
-        Else
-        {
-            Set-ItemProperty -Path $SDARegKey -Name ServicingStackUpdate -Value $FileName
-        }
-    }
 
     If ($CumulativeUpdate -eq $true)
     {
@@ -2436,20 +2269,6 @@ Function TattooRegistry
         Else
         {
             Set-ItemProperty -Path $SDARegKey -Name CumulativeDotNetUpdate -Value $FileName
-        }
-    }
-
-    If ($AdobeFlashUpdate -eq $true)
-    {
-        $PathToScan = "$TempPath\Adobe"
-        $FileName = (Get-ChildItem -Path $PathToScan).Name
-        If ($AdobeFlashUpdateRegValue -eq $null)
-        {
-            New-ItemProperty -Path $SDARegKey -Name AdobeFlashUpdate -PropertyType STRING -Value $FileName | Out-Null
-        }
-        Else
-        {
-            Set-ItemProperty -Path $SDARegKey -Name AdobeFlashUpdate -Value $FileName
         }
     }
 
@@ -2585,11 +2404,9 @@ Function Update-Win10WIM
     Param(
         [string]$SourcePath,
         [string]$SourceName,
-        [bool]$ServicingStack,
         [bool]$CumulativeUpdate,
         [bool]$DotNet35,
         [bool]$CumulativeDotNetUpdate,
-        [bool]$AdobeFlashUpdate,
         [bool]$UpdateBootWIM,
         [string]$ImageMountFolder,
         [string]$BootImageMountFolder,
@@ -2604,10 +2421,8 @@ Function Update-Win10WIM
     $TmpImage = "$TempFolder\tmp_install.wim"
     $TmpWinREImage = "$TempFolder\tmp_winre.wim"
     $TmpBootImage = "$TempFolder\tmp_boot.wim"
-    $ServicingStackPath = "$TempFolder\Servicing"
     $CumulativeUpdatePath = "$TempFolder\Cumulative"
     $CumulativeDotNetPath = "$TempFolder\DotNet"
-    $AdobeFlashUpdatePath = "$TempFolder\Adobe"
     $Office365Path = "$TempFolder\Office365"
     $DeviceDriverPath = "$TempFolder\$Device"
     $VC2013x86Path = "$TempFolder\VCRuntimes\2013\vcredist_x86.exe"
@@ -2622,7 +2437,7 @@ Function Update-Win10WIM
     $InstallOfficeScriptPath = "$WorkingDirPath\InstallOffice.ps1"
     $SetTaskBarPinsScriptPath = "$WorkingDirPath\SetTaskBarPins.ps1"
     $SysprepToOOBEScriptPath = "$WorkingDirPath\SysprepToOOBE.ps1"
-    
+
     <#
     $SourceName = Switch ($SourceName)
     {
@@ -2630,13 +2445,13 @@ Function Update-Win10WIM
         Enterprise {"Windows 10 Enterprise"}
     }
     #>
-    
+
     Write-Output ""
     Write-Output ""
     Write-Output ""
     Write-Output ""
     Write-Output ""
-    
+
     Write-Output " " | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
     Write-Output " " | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
     Write-Output " *********************************************" | Receive-Output -Color Cyan -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
@@ -2700,21 +2515,6 @@ Function Update-Win10WIM
             Start-Sleep 2
         }
 
-        If ($ServicingStack -eq $true)
-        {
-            $SSU = Get-ChildItem -Path $ServicingStackPath
-            If (!($SSU.Exists))
-            {
-                $ServicingStack = $False
-            }
-            Else
-            {
-                # Add required Servicing Stack updates
-                Write-Output "Adding Servicing Stack updates to $ImageMountFolder..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-                Add-PackageIntoWindowsImage -ImageMountFolder $ImageMountFolder -PackagePath $ServicingStackPath -TempImagePath $TmpImage -DismountImageOnCompletion $True
-                Start-Sleep 2
-            }
-        }
 
         If ($CumulativeUpdate -eq $true)
         {
@@ -2744,22 +2544,6 @@ Function Update-Win10WIM
                 # Add monthly Cumulative update
                 Write-Output "Adding Cumulative .NET updates to $ImageMountFolder..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
                 Add-PackageIntoWindowsImage -ImageMountFolder $ImageMountFolder -PackagePath $CumulativeDotNetPath -TempImagePath $TmpImage -DismountImageOnCompletion $False
-                Start-Sleep 2
-            }
-        }
-        
-        If ($AdobeFlashUpdate -eq $true)
-        {
-            $AFU = Get-ChildItem -Path $AdobeFlashUpdatePath
-            If (!($AFU.Exists))
-            {
-                $AdobeFlashUpdate = $False
-            }
-            Else
-            {
-                # Add Adobe Flash updates
-                Write-Output "Adding Adobe Flash updates to $ImageMountFolder..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-                Add-PackageIntoWindowsImage -ImageMountFolder $ImageMountFolder -PackagePath $AdobeFlashUpdatePath -TempImagePath $TmpImage -DismountImageOnCompletion $False
                 Start-Sleep 2
             }
         }
@@ -2883,22 +2667,6 @@ Function Update-Win10WIM
         Mount-WindowsImage -ImagePath $TmpWinREImage -Index 1 -Path $WinREImageMountFolder -CheckIntegrity
         Write-Output ""
         Write-Output ""
-
-        If ($ServicingStack)
-        {
-            $SSU = Get-ChildItem -Path $ServicingStackPath
-            If (!($SSU.Exists))
-            {
-                $ServicingStack = $False
-            }
-            Else
-            {
-                # Add Servicing Stack updates to the WinRE image 
-                Write-Output "Adding Servicing Stack updates to $WinREImageMountFolder..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-                Add-PackageIntoWindowsImage -ImageMountFolder $WinREImageMountFolder -PackagePath $ServicingStackPath -TempImagePath $TmpWinREImage -DismountImageOnCompletion $True
-                Start-Sleep 2
-            }
-        }
 
         If ($CumulativeUpdate)
         {
@@ -3331,7 +3099,7 @@ Function Update-Win10WIM
         Copy-Item -Path "$WorkingDirPath\UsbImage\Imaging.ps1" -Destination "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\Media"
         Copy-Item -Path "$WorkingDirPath\UsbImage\Install.cmd" -Destination "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\Media"
         Copy-Item -Path "$WorkingDirPath\UsbImage\startnet.cmd" -Destination "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\Media"
-        
+
         If ($MakeUSBMedia)
         {
             Write-Output "Insert USB drive 16GB+ in size, and press ENTER to view the drive selection menu" | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
@@ -3376,7 +3144,7 @@ Function Update-Win10WIM
                     Write-Output "DEBUG:   $USBSize" | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
                     Write-Output ""
                     Write-Output ""
-    
+
                     If ($USBSize -ge "30")
                     {
                         $NewUSBDriveLetter = New-Partition -DiskNumber $TempUSB -Size 32GB -AssignDriveLetter | Format-Volume -FileSystem FAT32 -NewFileSystemLabel $Device
@@ -3396,7 +3164,7 @@ Function Update-Win10WIM
                     Write-Output "Copying WinPE Media contents to $NewUSBDriveLetter..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
                     & bootsect.exe /nt60 $NewUSBDriveLetter /force /mbr
                     & xcopy /herky "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\Media" $NewUSBDriveLetter
-    
+
                     If ($SplitWIM -eq $True)
                     {
                         $SplitWIMs = Get-ChildItem -Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture" -Filter *install*$Now*.swm -Recurse
@@ -3423,7 +3191,7 @@ Function Update-Win10WIM
             $etfsboot = "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\fwfiles\etfsboot.com"
             $MediaSource = "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp\Media"
             $args = "-l$Device -bootdata:2#p0,e,b$etfsboot#pEF,e,b$efisys -m -u1 -udfver102 $MediaSource $DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\$Device-$Build-$Now.iso"
-            
+
             If ($SplitWIM -eq $True)
             {
                 $SplitWIMs = Get-ChildItem -Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture" -Filter *install*$Now*.swm -Recurse
@@ -3514,7 +3282,7 @@ If ($Device)
     # Read WinPEXML file
     [string]$XmlPath = "$WorkingDirPath\WinPE_Drivers.xml"
     [Xml]$WinPEXML = Get-Content $XmlPath
-    
+
     $SurfaceDevices = $WinPEXML.Surface.Devices
 }
 
@@ -3565,10 +3333,8 @@ Write-Output "OS SKU:                       $OSSKU" | Receive-Output -Color Whit
 Write-Output "Architecture:                 $Architecture" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output "Output:                       $DestinationFolder" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output "  .NET 3.5:                   $DotNet35" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-Write-Output "  Servicing Stack:            $ServicingStack" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output "  Cumulative Update:          $CumulativeUpdate" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output "  Cumulative DotNet Updates:  $CumulativeDotNetUpdate" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-Write-Output "  Adobe Flash Player Updates: $AdobeFlashUpdate" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output "  Out-Of-Band Updates:        $OOBUpdate" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output "  Office 365 install:         $Office365" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 If ($Device)
@@ -3649,17 +3415,9 @@ Else
 # If installing DotNet 3.5, the latest updates are also required - override any user parameters
 If ($DotNet35 -eq $True)
 {
-    $ServicingStack = $True
     $CumulativeUpdate = $True
     $CumulativeDotNetUpdate = $True
 }
-
-# Latest Servicing Stack is likely needed (if it exists) for the latest Cumulative Update to install successfully
-If ($CumulativeUpdate -eq $True)
-{
-    $ServicingStack = $True
-}
-
 
 # Download any components requested
 If ($Device)
@@ -3675,13 +3433,6 @@ If ($Office365 -eq $True)
 # We always need the VC Runtimes for our devices
 Get-LatestVCRuntimes -TempFolder $TempFolder
 
-If ($ServicingStack -eq $True)
-{
-    Get-ServicingStackUpdates -TempFolder $TempFolder
-}
-
-PAUSE
-
 If ($CumulativeUpdate -eq $True)
 {
     Get-CumulativeUpdates -TempFolder $TempFolder
@@ -3696,13 +3447,6 @@ If ($DotNet35 -eq $True)
 
 PAUSE
 
-If ($AdobeFlashUpdate -eq $True)
-{
-	Get-AdobeFlashUpdates -TempFolder $TempFolder
-}
-
-PAUSE
-
 If ($OOBUpdate -eq $True)
 {
 	Get-OOBUpdates -TempFolder $TempFolder
@@ -3710,9 +3454,8 @@ If ($OOBUpdate -eq $True)
 
 PAUSE
 
-
-# Add Servicing Stack / Cumulative updates and necessary drivers to install.wim, winre.wim, and boot.wim
-Update-Win10WIM -SourcePath $SourcePath -SourceName $OSSKU -ServicingStack $ServicingStack -CumulativeUpdate $CumulativeUpdate -DotNet35 $DotNet35 -CumulativeDotNetUpdate $CumulativeDotNetUpdate -AdobeFlashUpdate $AdobeFlashUpdate -ImageMountFolder $ImageMountFolder -BootImageMountFolder $BootImageMountFolder -WinREImageMountFolder $WinREImageMountFolder -TempFolder $TempFolder -WindowsKitsInstall $WindowsKitsInstall -UpdateBootWIM $UpdateBootWIM -MakeUSBMedia $CreateUSB -MakeISOMedia $CreateISO
+# Cumulative updates and necessary drivers to install.wim, winre.wim, and boot.wim
+Update-Win10WIM -SourcePath $SourcePath -SourceName $OSSKU -CumulativeUpdate $CumulativeUpdate -DotNet35 $DotNet35 -CumulativeDotNetUpdate $CumulativeDotNetUpdate -ImageMountFolder $ImageMountFolder -BootImageMountFolder $BootImageMountFolder -WinREImageMountFolder $WinREImageMountFolder -TempFolder $TempFolder -WindowsKitsInstall $WindowsKitsInstall -UpdateBootWIM $UpdateBootWIM -MakeUSBMedia $CreateUSB -MakeISOMedia $CreateISO
 
 
 # Determine ending time

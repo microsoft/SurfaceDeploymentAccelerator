@@ -68,13 +68,9 @@ The parameters that are supported to configure for the script are as follows:
  
  -DotNet35:                   Install .NET 3.5 in the image, True or False.  True is the default.
  
- -ServicingStack:             Download/inject latest servicing stack update, True or False.  True is the default.
- 
  -CumulativeUpdate:           Download/inject latest cumulative update, True or False.  True is the default.
  
  -CumulativeDotNetUpdate:     Download/inject latest cumulative update, True or False.  True is the default.
- 
- -AdobeFlashUpdate:           Include latest Adobe Flash Player Security update, True or False.  True is the default.
  
  -Office365:                  Download and install the latest monthly C2R installation of Office 365, True or False.  True is the default.
  
