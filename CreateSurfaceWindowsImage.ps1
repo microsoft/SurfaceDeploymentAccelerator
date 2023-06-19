@@ -11,13 +11,13 @@
 .NOTES
     Author:       Microsoft
     Last Update:  12th June 2023
-    Version:      1.3.3.0
+    Version:      1.4.0.0
 
-    Version 1.3.3.0
-    - Changed Design and added support to configure the correct ADK and WinPE tools based on ISO version.
-    - Corrected the ADK download & instllation logic for Windows 10, Windows 11 21H2 and Windows 11 22H2 with required URLs.
-    - Fixed the issue installation of SSU and latest Cumulative Update on to WinPE (boot.wim) image.
-    - Read ADK root value from registry and set to $WindowsKitsInstall, If $WindowsKitsInstall is not valid. It is important to avoid using unsupported dism.exe.
+    Version 1.4.0.0
+    - Changed design and added support to configure the correct ADK and WinPE tools based on ISO version.
+    - Corrected the ADK download & installation logic for Windows 10, Windows 11 21H2 and Windows 11 22H2 with required URLs.
+    - Fixed installation of SSU and latest Cumulative Update on to WinPE (boot.wim) image.
+    - Read ADK root value from registry and set to $WindowsKitsInstall, if $WindowsKitsInstall is not valid. It is important to avoid using unsupported dism.exe.
 
     Version 1.3.2.0
     - Inserted Fix for Microsoft Update Catalog downloads by Fvbor
@@ -254,7 +254,7 @@ Param(
 
 
 
-$SDAVersion = "1.3.3.0"
+$SDAVersion = "1.4.0.0"
 $OutputEncoding = [console]::InputEncoding = [console]::OutputEncoding = New-Object System.Text.UTF8Encoding
 Add-Type –AssemblyName System.Speech
 $SpeechSynthesizer = New-Object –TypeName System.Speech.Synthesis.SpeechSynthesizer
@@ -417,7 +417,7 @@ Function DownloadFile
     Param(
         [System.Uri]$URL,
         [System.String]$Path,
-        [bool]$ForceDownload
+        [switch]$ForceDownload
     )
 
     # Get file name
@@ -445,8 +445,8 @@ Function DownloadFile
 
     If (($ForceDownload -eq $true) -and (Test-Path -Path "$global:Output"))
     {
-	Write-Output "Delete the existing file" | Receive-Output -Color Yellow -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-	Remove-Item -Path "$global:Output" -Force
+        Write-Output "Delete the existing file: $global:Output" | Receive-Output -Color Yellow -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Remove-Item -Path "$global:Output" -Force
     }
 
     # If file does not exist, download file
@@ -554,9 +554,11 @@ Function PrereqCheck
     }
 }
 
-##
-## This function compares Major.Minor.Build if it doesn't match then it compares Major and Build version.
-##
+<#
+.SYNOPSIS
+    This function compares Major.Minor.Build. If it doesn't match, then it compares Major and Build version.
+    This is because Windows 11 ISO reports OS version with Minor version as 0, but Windows 11 ADK and WinPE tools are installed with Minor version 1.
+#>
 Function CompareVersions
 {
     Param(
@@ -564,7 +566,6 @@ Function CompareVersions
         [String]$AppVersion
     )
     
-    ## Strange, Versions passed have some spaces added. Just trim them off.
     $OSVersion = $OSVersion.Trim()
     $AppVersion = $AppVersion.Trim()
 
@@ -598,7 +599,7 @@ Function ConfigureADKTools
     $OSFullVersion = $OSFullVersion.Trim()
     Write-Output "OSFullVersion (from ISO): $OSFullVersion" | Receive-Output -Color White -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 
-    # check whether ADK and WinPE binaries are installed or not.
+    # Check whether ADK and WinPE binaries are installed or not.
     $InstalledApps_32bits = Get-ChildItem "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" | ForEach { gp $_.PSPath } | ? { $_ -like "*Windows Assessment and Deployment Kit*"}
     $InstalledApps_64bits = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" | ForEach { gp $_.PSPath } | ? { $_ -like "*Windows Assessment and Deployment Kit*"}
 
@@ -607,10 +608,10 @@ Function ConfigureADKTools
     $InstalledApps += $InstalledApps_32bits
     $InstalledApps += $InstalledApps_64bits
 
-    ## Split the version to FOUR_PART_VERSION, we need to compare Major and Build number only.
-    ## Because Windows 11 ISO reports OS version with Minor version as 0 but Windows 11 ADK and WinPE tools are installed with Minor version 1.
-    ## Using CompareVersions, but need to find better way to compare versions.
-    ## $OSVersionMajor, $OSVersionMinor, $OSVersionBuild, $OSVersionRelease = $OSFullVersion.Split('.')
+    # Split the version to FOUR_PART_VERSION, we need to compare Major and Build number only.
+    # Because Windows 11 ISO reports OS version with Minor version as 0 but Windows 11 ADK and WinPE tools are installed with Minor version 1.
+    # Using CompareVersions, but need to find better way to compare versions.
+    # $OSVersionMajor, $OSVersionMinor, $OSVersionBuild, $OSVersionRelease = $OSFullVersion.Split('.')
     ForEach( $AppInfo in $InstalledApps)
     {
         If ($IsCorrectADKInstalled -eq $false)
@@ -655,10 +656,9 @@ Function ConfigureADKTools
     {
         Write-Output ""
         Write-Output "Either ADK OR WinPE re-installation is required" | Receive-Output -Color Red -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-        PAUSE
 
-        ## Uninstall old version of ADK and WinPE
-        ForEach( $AppInfo in $InstalledApps)
+        # Uninstall old versions of ADK and WinPE
+        ForEach($AppInfo in $InstalledApps)
         {
             If ($IsCorrectADKInstalled -eq $false)
             {
@@ -747,7 +747,7 @@ Function ConfigureADKTools
             Check-Internet
             $URL = $ADKURL
             $Path = "$env:TEMP"
-            DownloadFile $URL $Path $true
+            DownloadFile -URL $URL -Path $Path -ForceDownload
             $SourceFilePath = $global:Output
 
             Try
@@ -772,7 +772,7 @@ Function ConfigureADKTools
             Check-Internet
             $URL = $WINPEURL
             $Path = "$env:TEMP"
-            DownloadFile $URL $Path $true
+            DownloadFile -URL $URL -Path $Path -ForceDownload
             $SourceFilePath = $global:Output
 
             Try
@@ -3847,8 +3847,20 @@ Start-Sleep 5
 
 If ($global:OSVersion.Trim() -ne $global:WinPEVersion.Trim())
 {
-    Write-Output "OSVersion:  $global:OSVersion and WinPEVersion: $global:WinPEVersion are not matching" | Receive-Output -Color Red -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-    Exit
+    $osVer = [version]$global:OSVersion.Trim()
+    $winpeVer = [version]$global:WinPEVersion.Trim()
+    
+    # Special case for Win10
+    # 19041 WinPE is compatible with builds 19041 - 19045
+    If ((@("19041", "19042", "19043", "19044", "19045") -contains $osVer.Build) -and (19041 -eq $winpeVer.Build))
+    {
+        Write-Output "WinPEVersion: $global:WinPEVersion is within build range of OSVersion: $global:OSVersion"
+    }
+    else
+    {
+        Write-Output "OSVersion:  $global:OSVersion and WinPEVersion: $global:WinPEVersion do not match" | Receive-Output -Color Red -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Exit
+    }
 }
 
 # Variables needed after Get-OSWIMFromISO finishes, passed to Update-Win10WIM
