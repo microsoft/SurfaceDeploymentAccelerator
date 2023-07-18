@@ -10,8 +10,17 @@
 
 .NOTES
     Author:       Microsoft
-    Last Update:  27th January 2023
-    Version:      1.3.2.0
+    Last Update:  18th July 2023
+    Version:      1.4.0.0
+
+    Version 1.4.0.0
+    - Changed design and added support to configure the correct ADK and WinPE tools based on ISO version.
+    - Corrected the ADK download & installation logic for Windows 10, Windows 11 21H2 and Windows 11 22H2 with required URLs.
+    - Fixed the issue installation of SSU and latest Cumulative Update on to WinPE (boot.wim) image.
+    - Read ADK root value from registry and set to $WindowsKitsInstall, if $WindowsKitsInstall is not valid. It is important to avoid using unsupported dism.exe.
+    - Added Automated flag to skip any pause commands in script
+    - Added support for Surface Pro 9 Intel
+    - Added support for Surface Laptop 5
 
     Version 1.3.2.0
     - Inserted Fix for Microsoft Update Catalog downloads by Fvbor
@@ -179,7 +188,7 @@ Param(
         Mandatory=$False,
         HelpMessage="Surface device type to add drivers to image for, if not specified no drivers injected - Custom can be used if using with a non-Surface device"
         )]
-        [ValidateSet('SurfacePro4', 'SurfacePro5', 'SurfacePro6', 'SurfacePro7', 'SurfacePro7Plus', 'SurfacePro8', 'SurfaceLaptop', 'SurfaceLaptop2', 'SurfaceLaptop3Intel', 'SurfaceLaptop3AMD', 'SurfaceLaptop4Intel', 'SurfaceLaptop4AMD', 'SurfaceLaptopGo', 'SurfaceLaptopStudio', 'SurfaceBook', 'SurfaceBook2', 'SurfaceBook3', 'SurfaceStudio', 'SurfaceStudio2', 'SurfaceGo', 'SurfaceGoLTE', 'SurfaceGo2', 'SurfaceGo3', 'SurfaceHub2', 'Custom')]
+        [ValidateSet('SurfacePro4', 'SurfacePro5', 'SurfacePro6', 'SurfacePro7', 'SurfacePro7Plus', 'SurfacePro8', 'SurfacePro9Intel', 'SurfaceLaptop', 'SurfaceLaptop2', 'SurfaceLaptop3Intel', 'SurfaceLaptop3AMD', 'SurfaceLaptop4Intel', 'SurfaceLaptop4AMD', 'SurfaceLaptop5', 'SurfaceLaptopGo', 'SurfaceLaptopStudio', 'SurfaceBook', 'SurfaceBook2', 'SurfaceBook3', 'SurfaceStudio', 'SurfaceStudio2', 'SurfaceGo', 'SurfaceGoLTE', 'SurfaceGo2', 'SurfaceGo3', 'SurfaceHub2', 'Custom')]
         [string]$Device = "SurfacePro8",
 
     [Parameter(
@@ -244,15 +253,22 @@ Param(
         HelpMessage="Path to an MSI or extracted driver folder - required if you set UseLocalDriverPath variable to true or script will not find any drivers to inject"
         )]
         [string]$LocalDriverPath
+
+    [Parameter(
+        Position=22,
+        Mandatory=$False,
+        HelpMessage="If true, skips any pause commands in this script, default is false"
+        )]
+        [bool]$Automated = $False
     )
 
 
 
-$SDAVersion = "1.3.1.0"
+$SDAVersion = "1.4.0.0"
 $OutputEncoding = [console]::InputEncoding = [console]::OutputEncoding = New-Object System.Text.UTF8Encoding
 Add-Type –AssemblyName System.Speech
 $SpeechSynthesizer = New-Object –TypeName System.Speech.Synthesis.SpeechSynthesizer
-
+$Windows10Versions = @("10.0.19041", "10.0.19042", "10.0.19043", "10.0.19044", "10.0.19045")
 
 
 Function Start-Log
@@ -339,7 +355,7 @@ Function Receive-Output
         }
         Else
         {
-        Write-Host $_ -ForegroundColor $Color
+            Write-Host $_ -ForegroundColor $Color
         }
 
         If (($LogLevel) -or ($LogFile))
@@ -410,7 +426,8 @@ Function DownloadFile
 {
     Param(
         [System.Uri]$URL,
-        [System.String]$Path
+        [System.String]$Path,
+        [bool]$ForceDownload
     )
 
     # Get file name
@@ -435,6 +452,12 @@ Function DownloadFile
     }
 
     $global:Output = "$Path\$Filename"
+
+    If (($ForceDownload -eq $true) -and (Test-Path -Path "$global:Output"))
+    {
+        Write-Output "Delete the existing file: $global:Output" | Receive-Output -Color Yellow -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Remove-Item -Path "$global:Output" -Force
+    }
 
     # If file does not exist, download file
     If (!(Test-Path -Path "$global:Output"))
@@ -541,71 +564,162 @@ Function PrereqCheck
         Write-Output "$Env:Computername Aborting script..." | Receive-Output -Color Red -BGColor Black -LogLevel 3 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
         Exit
     }
-    
-    # Validating that the ADK Deployment Tools are installed
-    If (!(Test-Path $DISMFile))
+}
+
+
+
+## Uninstalls existing ADK and WinPE Addon
+## Downloads latest ADK and WinPE based on OSFullVersion
+## Installs ADK and WinPE Addon into {$env:SystemDrive}\ADK_Tools
+Function ConfigureADKTools
+{
+    Param(
+        [string]$OSFullVersion
+    )
+
+    Write-Output ""
+    Write-Output ""
+
+    $IsCorrectADKInstalled = $false
+    $IsCorrectWinPEInstalled = $false
+    $OSFullVersion = $OSFullVersion.Trim()
+    $ADKInstallationPath = $env:SystemDrive + "\ADK_Tools"
+    $ADKPATHARGS = " /installpath $ADKInstallationPath "
+
+    $ADKRootRegistryKey = "HKLM:\SOFTWARE\Microsoft\Windows Kits\Installed Roots"
+    If (!(Test-Path -Path $ADKRootRegistryKey))
     {
-        Write-Output "DISM in Windows ADK not found, attempting installation..." | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-        Write-Output ""
-        $global:Output = $null
-        $global:IsInstalled = $null
+        $ADKRootRegistryKey = "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows Kits\Installed Roots"
+    }
+    
+    If (Test-Path -Path $ADKRootRegistryKey)
+    {
+        $ADKRootPath = Get-ItemPropertyValue -Path $ADKRootRegistryKey -Name "KitsRoot10"
+        Write-Output "Found registry key: $ADKRootRegistryKey" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Write-Output "ADK root from registry: $ADKRootPath" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 
-        $ScriptFolder = $DestinationFolder
-        $ADKSourceFile = "$ScriptFolder\adksetup.exe"
-        $ADKArguments = " /features OptionId.DeploymentTools /quiet"
-
-        GetInstalledAppStatus -AppName "Windows Assessment and Deployment Kit - Windows 10" -AppVersion "10.1.19041"
-
-        If ($global:IsInstalled -eq $null)
+        If (Test-Path -Path $ADKRootPath)
         {
-            # ADK cannot do an "in place" upgrade.  Do we need to uninstall the old version?
-            $uninstall32 = Get-ChildItem "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" | ForEach { gp $_.PSPath } | ? { $_ -like "*Windows Assessment and Deployment Kit - Windows 10*" } | select UninstallString
-            $uninstall64 = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" | ForEach { gp $_.PSPath } | ? { $_ -like "*Windows Assessment and Deployment Kit - Windows 10*" } | select UninstallString
+            $ADKInstallationPath = $ADKRootPath
+            $ADKPATHARGS = ""
+        }
+    }
 
-            If ($uninstall64) 
+    If ($IsCorrectADKInstalled -eq $false -or $IsCorrectWinPEInstalled -eq $false)
+    {
+        Write-Output ""
+        Write-Output "Either ADK OR WinPE re-installation is required" | Receive-Output -Color Red -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        If (!($Automated)) { PAUSE }
+
+        # Check whether ADK and WinPE binaries are installed or not.
+        $InstalledApps_32bits = Get-ChildItem "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" | ForEach { gp $_.PSPath } | ? { $_ -like "*Windows Assessment and Deployment Kit*" }
+        $InstalledApps_64bits = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" | ForEach { gp $_.PSPath } | ? { $_ -like "*Windows Assessment and Deployment Kit*" }
+
+        # Merge both types of apps
+        $InstalledApps = @()
+        $InstalledApps += $InstalledApps_32bits
+        $InstalledApps += $InstalledApps_64bits
+
+        # Uninstall old version of ADK and WinPE
+        ForEach ( $AppInfo in $InstalledApps)
+        {
+            If ($IsCorrectADKInstalled -eq $false)
             {
-                ForEach ($u in $uninstall64)
+                # Check Windows 11 ADK
+                If ($AppInfo.DisplayName -eq "Windows Assessment and Deployment Kit")
                 {
-                    $u = $u.UninstallString -Replace "/uninstall","" 
+                    $u = $AppInfo.UninstallString -Replace "/uninstall", ""
                     $u = $u.Trim()
-                    Write-Output "Removing old 64bit ADK components.  Command is $u and args are /uninstall /quiet" | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                    Write-Output "Removing old ADK components.  Command is $u and args are /uninstall /quiet" | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
                     Start-Process -filepath $u -argumentlist "/uninstall /quiet" -wait
+                    Start-Sleep 5
+                }
+
+                # Check Windows 10 ADK
+                ElseIf ($AppInfo.DisplayName -eq "Windows Assessment and Deployment Kit - Windows 10")
+                {
+                    $u = $AppInfo.UninstallString -Replace "/uninstall", ""
+                    $u = $u.Trim()
+                    Write-Output "Removing old ADK components.  Command is $u and args are /uninstall /quiet" | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                    Start-Process -filepath $u -argumentlist "/uninstall /quiet" -wait
+                    Start-Sleep 5
                 }
             }
 
-            If ($uninstall32)
+            If ($IsCorrectWinPEInstalled -eq $false)
             {
-                ForEach ($u in $uninstall32)
-                {
-                    $u = $u.UninstallString -Replace "/uninstall",""
+                # Check Windows 11 WinPE
+                If (($AppInfo.DisplayName -match "Windows Assessment and Deployment Kit") -and ($AppInfo.DisplayName -like "*Preinstallation Environment*")) {
+                    $u = $AppInfo.UninstallString -Replace "/uninstall", ""
                     $u = $u.Trim()
-                    Write-Output "Removing old 32bit ADK components.  Command is $u and args are /uninstall /quiet" | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                    Write-Output "Removing old Windows 11 WinPE components.  Command is $u and args are /uninstall /quiet" | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
                     Start-Process -filepath $u -argumentlist "/uninstall /quiet" -wait
+                    Start-Sleep 5
+                }
+
+                # Check Windows 10 WinPE
+                ElseIf (($AppInfo.DisplayName -match "Windows Assessment and Deployment Kit") -and ($AppInfo.DisplayName -like "*Preinstallation Environment*") -and ($AppInfo.DisplayName -like "*Add-ons - Windows 10*"))
+                {
+                    $u = $AppInfo.UninstallString -Replace "/uninstall", ""
+                    $u = $u.Trim()
+                    Write-Output "Removing old WinPE components.  Command is $u and args are /uninstall /quiet" | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                    Start-Process -filepath $u -argumentlist "/uninstall /quiet" -wait
+                    Start-Sleep 5
                 }
             }
+        }
 
-            If ((Test-Path -Path $ADKSourceFile) -eq $true)
-            {
-                $SourceFilePath = $(Get-Item $SourceFile).FullName
-                Write-Output "Found Installation files for ADK at $SourceFilePath" | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-            }	
-            Else
-            {
-                Check-Internet
-                $URL = "https://aka.ms/sdaadk/2004"
-                $Path = "$env:TEMP"
-                DownloadFile $URL $Path
-                $SourceFilePath = $global:Output
-            }
+        Start-Sleep 5
+        # Download and install correct version of ADK and WinPE, if required.
+        # As on 2023-06-11: ADK and WinPE download information is available at https://learn.microsoft.com/en-us/windows-hardware/get-started/adk-install#other-adk-downloads
+        $TrimmedOSVersionFromISO = $OSFullVersion.Substring(0, $OSFullVersion.LastIndexOf('.')).Trim()
+        Write-Output ""
+
+        $ADKURL = "https://aka.ms/sdaadk/w11-22h2"
+        $WINPEURL = "https://aka.ms/sdaadkpe/w11-22h2"
+        $ADKArguments = " $ADKPATHARGS /features OptionId.DeploymentTools /quiet"
+        $WinPEArguments = " $ADKPATHARGS /features OptionId.WindowsPreinstallationEnvironment /quiet"
+
+        If ($Windows10Versions -contains $TrimmedOSVersionFromISO)
+        {
+            Write-Output "Configure Windows 10 ADK & WinPE" | Receive-Output -Color Green -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+            $ADKURL = "https://aka.ms/sdaadk/2004"
+            $WINPEURL = "https://aka.ms/sdaadkpe/2004"
+        }
+        ElseIf ($TrimmedOSVersionFromISO -eq "10.0.22000")
+        {
+            Write-Output "Configure Windows 11 21H2 ADK & WinPE" | Receive-Output -Color Green -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+            $ADKURL = "https://aka.ms/sdaadk/W11-21H2"
+            $WINPEURL = "https://aka.ms/sdaadkpe/W11-21H2"
+        }
+        ElseIf ($TrimmedOSVersionFromISO -eq "10.0.22621")
+        {
+            Write-Output "Configure Windows 11 22H2 ADK & WinPE" | Receive-Output -Color Green -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+            $ADKURL = "https://aka.ms/sdaadk/w11-22h2"
+            $WINPEURL = "https://aka.ms/sdaadkpe/w11-22h2"
+        }
+
+        Write-Output "ADK URL: $ADKURL" | Receive-Output -Color Cyan -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Write-Output "WinPE URL: $WINPEURL" | Receive-Output -Color Cyan -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+
+        If ($IsCorrectADKInstalled -eq $false)
+        {
+            Check-Internet
+            $URL = $ADKURL
+            $Path = "$env:TEMP"
+            DownloadFile $URL $Path $true
+            $SourceFilePath = $global:Output
 
             Try
             {
                 Write-Output "Installing Windows Assessment and Deployment Kit Deployment Tools" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                Write-Output "ADKArguments: $ADKArguments" | Receive-Output -Color Yellow -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+
                 Start-Process -File  $SourceFilePath -Arg $ADKArguments -passthru | Wait-Process
+                $IsCorrectADKInstalled = $true
 
                 Write-Output "$AppName - ADK INSTALLATION SUCCESSFULLY COMPLETED" | Receive-Output -Color Green -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
                 Write-Output  ""
-
             }
             Catch
             {
@@ -614,73 +728,25 @@ Function PrereqCheck
                 Exit
             }
         }
-    }
 
-    # Validating that the ADK WinPE Add-ons are installed
-    If (!(Test-Path $ADKWinPEFile))
-    {
-        Write-Output "Windows ADK Windows PE components not found, attempting installation..." | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-        Write-Output ""
-        $global:Output = $null
-        $global:IsInstalled = $null
-
-        $ScriptFolder = $DestinationFolder
-        $WinPESourceFile = "$ScriptFolder\adkwinpesetup.exe"
-        $WinPEArguments = " /features OptionId.WindowsPreinstallationEnvironment /quiet"
-
-        GetInstalledAppStatus -AppName "Windows Assessment and Deployment Kit Windows Preinstallation Environment Add-ons - Windows 10" -AppVersion "10.1.19041"
-
-        If ($global:IsInstalled -eq $null)
+        If ($IsCorrectWinPEInstalled -eq $false)
         {
-            # ADK cannot do an "in place" upgrade.  Do we need to uninstall the old version?
-            $uninstall32 = Get-ChildItem "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" | ForEach { gp $_.PSPath } | ? { $_ -like "*Windows Assessment and Deployment Kit Windows Preinstallation Environment Add-ons - Windows 10*" } | select UninstallString
-            $uninstall64 = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" | ForEach { gp $_.PSPath } | ? { $_ -like "*Windows Assessment and Deployment Kit Windows Preinstallation Environment Add-ons - Windows 10*" } | select UninstallString
-
-            If ($uninstall64) 
-            {
-                ForEach ($u in $uninstall64)
-                {
-                    $u = $u.UninstallString -Replace "/uninstall","" 
-                    $u = $u.Trim()
-                    Write-Output "Removing old 64bit ADK WinPE components.  Command is $u and args are /uninstall /quiet" | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-                    Start-Process -filepath $u -argumentlist "/uninstall /quiet" -wait
-                }
-            }
-
-            If ($uninstall32)
-            {
-                ForEach ($u in $uninstall32)
-                {
-                    $u = $u.UninstallString -Replace "/uninstall",""
-                    $u = $u.Trim()
-                    Write-Output "Removing old 32bit ADK WinPE components.  Command is $u and args are /uninstall /quiet" | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-                    Start-Process -filepath $u -argumentlist "/uninstall /quiet" -wait
-                }
-            }
-
-            If ((Test-Path -Path $WinPESourceFile) -eq $true)
-            {
-                $SourceFilePath = $(Get-Item $SourceFile).FullName
-                Write-Output "Found Installation files for ADK WinPE at $SourceFilePath" | Receive-Output -Color Gray -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-            }	
-            Else
-            {
-                Check-Internet
-                $URL = "https://aka.ms/sdaadkpe/2004"
-                $Path = "$env:TEMP"
-                DownloadFile $URL $Path
-                $SourceFilePath = $global:Output
-            }
+            Check-Internet
+            $URL = $WINPEURL
+            $Path = "$env:TEMP"
+            DownloadFile $URL $Path $true
+            $SourceFilePath = $global:Output
 
             Try
             {
                 Write-Output "Installing Windows Assessment and Deployment Kit Windows Preinstallation Environment Add-Ons" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                Write-Output "WinPEArguments: $WinPEArguments" | Receive-Output -Color Yellow -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
                 Start-Process -File  $SourceFilePath -Arg $WinPEArguments -passthru | Wait-Process
-  
+                $IsCorrectWinPEInstalled = $true
+
                 Write-Output  "$AppName - ADK WinPE Add-Ons INSTALLATION SUCCESSFULLY COMPLETED" | Receive-Output -Color Green -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
                 Write-Output  ""
             }
-
             Catch
             {
                 Write-Output  "$AppName - INSTALLATION ERROR - check logs in $env:TEMP\adkwinpeaddons for more info." | Receive-Output -Color Red -BGColor Black -LogLevel 3 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
@@ -688,9 +754,16 @@ Function PrereqCheck
                 Exit
             }
         }
+
+        Write-output "IsCorrectADKInstalled : $IsCorrectADKInstalled" | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Write-output "IsCorrectWinPEInstalled : $IsCorrectWinPEInstalled" | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+
+        if (($IsCorrectADKInstalled -eq $true) -and ($IsCorrectWinPEInstalled -eq $true))
+        {
+            $global:InstalledADKRoot = "$ADKInstallationPath\Assessment and Deployment Kit"
+        }
     }
 }
-
 
 
 Function Get-DownloadDialogText
@@ -777,7 +850,7 @@ Function Download-LatestUpdates
         }
         If ($Cumulative)
         {
-            $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Cumulative Update for*") -and -not ($_.description -like "*Dynamic Cumulative Update for*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
+            $global:KBGUID = $guids | Where-Object {($_.description -like "*$Date*") -and ($_.description -like "*Cumulative Update for $Windows*") -and -not ($_.description -like "*Dynamic Cumulative Update for*") -and ($_.description -like "*$OSBuild*") -and ($_.description -like "*$Architecture*")}
         }
         If ($CumulativeDotNet)
         {
@@ -819,6 +892,7 @@ Function Download-LatestUpdates
             $DLWUDOTCOM = ($downloaddialog | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } } ).source
             $DLDELDOTCOM = ($downloaddialog | Select-String -AllMatches -Pattern "(http[s]?\://dl\.delivery\.mp\.microsoft\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } } ).source
             $DLCATWUDOTCOM = ($downloaddialog | Select-String -AllMatches -Pattern "(http[s]?\://catalog\.s\.download\.windowsupdate\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } }).source
+            $DLSFCATWUDOTCOM = ($downloaddialog | Select-String -AllMatches -Pattern "(http[s]?\://catalog\.sf\.dl\.delivery\.mp\.microsoft\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } }).source
 
             If ($DLWUDOTCOM)
             {
@@ -832,7 +906,10 @@ Function Download-LatestUpdates
             {
                 $links = $DLCATWUDOTCOM
             }
-
+            If ($DLSFCATWUDOTCOM)
+            {
+                $links = $DLSFCATWUDOTCOM
+            }
             If ($links)
             {
                 $updatesFound = $true
@@ -897,9 +974,15 @@ Function Get-LatestUpdates
     {
         $Date = Get-Date -Format "yyyy-MM"
     }
-    
+
+    <# Windows 10 22H2 LCU would be applicable to install it on all versions of Windows 10 (19041~19045)#>
+    If ($Windows -eq "Windows 10")
+    {
+        $OSBuild = "22H2"
+    }
+
     $ServicingURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Servicing Stack " + $Architecture + " " + $Windows + " " + $OSBuild
-    $CumulativeURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Cumulative update for " + $Windows + " for " + $Architecture + "-based Systems " + $OSBuild
+    $CumulativeURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Cumulative update for " + $Windows + " Version " + $OSBuild + " for " + $Architecture + "-based Systems"
     $CumulativeDotNetURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Cumulative update for .NET Framework " + $Windows + " " + $Architecture + " " + $OSBuild
     $AdobeURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Security Update for Adobe Flash Player for " + $Windows + " " + $Architecture + " " + $OSBuild
     $OOBURI = "http://www.catalog.update.microsoft.com/Search.aspx?q=" + $Date + " Update for " + $Windows + " for " + $Architecture + "-based Systems "
@@ -1424,6 +1507,12 @@ Function Get-LatestDrivers
             $TempDeviceType = "AMD"
             $URL = "https://aka.ms/" + $TempDevice + "/" + $TempDeviceType + "/" + $OSBuild
         }
+        ElseIf ($Device -eq "SurfacePro9Intel")
+        {
+            $TempDevice = "SurfacePro9"
+            $TempDeviceType = "Intel"
+            $URL = "https://aka.ms/" + $TempDevice + "/" + $TempDeviceType + "/" + $OSBuild
+        }
         Else
         {
             $URL = "https://aka.ms/" + $Device + "/" + $OSBuild
@@ -1702,7 +1791,99 @@ Function Get-CumulativeDotNetUpdates
     Get-LatestUpdates -CumulativeDotNet $True -Path $CumulativeDotNetPath -Windows $global:WindowsVersion -OSBuild $global:ReleaseId -Architecture $Architecture
 }
 
+Function Get-WindowsOSVersionFromISO
+{
+    Param(
+        [String]$ISO
+    )
 
+    $global:FullOSVersionFromSetupEXE = "10.0.22621.1"
+
+    Write-Output "Mounting ISO $ISO..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+    $ISOPath = (Mount-DiskImage -ImagePath $ISO -StorageType ISO -PassThru | Get-Volume).DriveLetter
+    $Drive = $ISOPath + ":"
+
+    If ($ISOPath)
+    {
+        Write-Output "ISO successfully mounted at $Drive" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Write-Output ""
+    }
+    Else
+    {
+        Write-Output "Failed to mount the ISO. Please verify the ISO path and try again" | Receive-Output -Color Red -BGColor Black -LogLevel 3 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Exit
+    }
+
+    Write-Output "Parsing version from $Drive\sources\setup.exe..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+    $fileVersion = (Get-Item -Path "$Drive\sources\setup.exe").VersionInfo.FileVersion
+
+    If ($fileVersion -match '\s')
+    {
+        $fileVersion = ($fileVersion -split '\s')[0]
+    }
+
+    if ($fileVersion)
+    {
+        $global:FullOSVersionFromSetupEXE = $fileVersion.Trim()
+    }
+
+    Dismount-DiskImage -ImagePath $ISO | Out-Null
+    Write-Output ""
+    return $global:FullOSVersionFromSetupEXE
+}
+
+Function CloseRegEdit
+{
+    $regeditProcess = Get-Process -Name regedit -ErrorAction SilentlyContinue
+
+    if ($regeditProcess) {
+        Write-Output "Terminating regedit.exe..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        $regeditProcess | ForEach-Object { $_.Kill() }
+        Write-Output "regedit.exe terminated." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+    }
+}
+
+Function LoadRegistryHive
+{
+    Param(
+        $MountPoint,
+        $RegistryHive
+    )
+
+    # Unmount if hive is already mounted.
+    UnloadRegistryHive -MountPoint $MountPoint
+
+    Write-Output "Loading registry..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+    & reg.exe load "$MountPoint" "$RegistryHive"
+    Write-Output "Done loading registry..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+}
+
+Function UnloadRegistryHive
+{
+    Param(
+        $MountPoint
+    )
+    
+    If (Test-Path -Path $MountPoint)
+    {
+        $retries = 3
+
+        Write-Output "Close regedit.exe if it is opened" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        CloseRegEdit
+
+        do
+        {
+            Write-Output "Unloading registry..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+            & reg.exe unload "$MountPoint"
+            if ($LASTEXITCODE -eq 0)
+            {
+                Write-Output "Done unloading registry..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                break
+            }
+            $retries = $retries - 1
+        } while ($retries -gt 0)
+    }
+}
 
 Function Get-OSWIMFromISO
 {
@@ -1870,16 +2051,16 @@ Function Get-OSWIMFromISO
                     Write-Output ""
                     Write-Output "Mounting $ImagePath in $ScratchMountFolder..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
                     Mount-WindowsImage -ImagePath $ImagePath -Index $ImageIndex -Path $ScratchMountFolder -ReadOnly | Out-Null
-                    Start-Sleep 5
+
                     Write-Output "Querying image registry for ReleaseId..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-                    & reg.exe load "HKLM\Mount" "$ScratchMountFolder\Windows\system32\config\SOFTWARE"
+                    LoadRegistryHive -MountPoint "HKLM\Mount" -RegistryHive "$ScratchMountFolder\Windows\system32\config\SOFTWARE"
                     $Key = "HKLM:\Mount\Microsoft\Windows NT\CurrentVersion"
                     $global:ReleaseId = (Get-ItemProperty -Path $Key -Name ReleaseId).ReleaseId
                     $global:CurrentBuild = (Get-ItemProperty -Path $Key -Name CurrentBuild).CurrentBuild
-                    Start-Sleep 5
+
                     Write-Output "Unloading image registry..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-                    & reg.exe unload "HKLM\Mount"
-                    Start-Sleep 5
+                    UnloadRegistryHive -MountPoint "HKLM\Mount"
+
                     Write-Output "Dismounting $ScratchMountFolder..." |Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
                     Dismount-WindowsImage -Path $ScratchMountFolder  -Discard | Out-Null
                     Write-Output ""
@@ -2022,8 +2203,14 @@ Function Get-OSWIMFromISO
         $Arch = "arm64"
     }
 
-    Write-Output "Copying $WindowsKitsInstall\Windows Preinstallation Environment\$Arch\en-us\winpe.wim to $DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs\boot.wim..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-    Copy-Item -Path "$WindowsKitsInstall\Windows Preinstallation Environment\$Arch\en-us\winpe.wim" -Destination "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs\boot.wim"
+    ## Check whether boot.wim exists in the path or not.
+    If (Test-Path "$WindowsKitsInstall\Windows Preinstallation Environment\$Arch\en-us\winpe.wim")
+    {
+        Write-Output "Copying $WindowsKitsInstall\Windows Preinstallation Environment\$Arch\en-us\winpe.wim to $DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs\boot.wim..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Copy-Item -Path "$WindowsKitsInstall\Windows Preinstallation Environment\$Arch\en-us\winpe.wim" -Destination "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs\boot.wim"
+    }
+
+    Start-Sleep 3
     $SourceBootWIMs = Get-ChildItem -Path "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs" -filter boot.wim -Recurse
     ForEach ($SourceBootWIM in $SourceBootWIMs)
     {
@@ -2034,8 +2221,9 @@ Function Get-OSWIMFromISO
         $ImageIndex = $PEWIM.ImageIndex
         $ImageName = $PEWIM.ImageName
         $global:WinPEVersion = (& $DISMFile /Get-WimInfo /WimFile:$ImagePath /index:$ImageIndex | Select-String "Version ").ToString().Split(":")[1].Trim()
-
     }
+
+    Write-Output "Got WinPEVersion :$global:WinPEVersion" | Receive-Output -Color Green -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 
     If ($DotNet35 -eq $true)
     {
@@ -2099,10 +2287,21 @@ Function Add-PackageIntoWindowsImage
         [bool]$DismountImageOnCompletion = $true
     )
 
-    Add-WindowsPackage -Path $ImageMountFolder -PackagePath $PackagePath
-    Write-Output ""
-    Write-Output ""
+    try
+    {
+        Add-WindowsPackage -Path $ImageMountFolder -PackagePath $PackagePath
+        Write-Output ""
+        Write-Output ""
+    }
+    catch
+    {
+        $theError = $_
+        Write-Output $theError
+        throw $theError
+    }
 
+    # Force setting DismountImageOnCompletion to $false
+    $DismountImageOnCompletion = $false
     If ($DismountImageOnCompletion -eq $True)
     {
         # Dismount the image to avoid PSFX/non-PSFX update compression issues in RS5+
@@ -2345,7 +2544,7 @@ Function TattooRegistry
 
     $TempPath = "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\Temp"
 
-    & reg.exe load "HKLM\Mount" "$ImageMountFolder\Windows\system32\config\SOFTWARE"
+    LoadRegistryHive -MountPoint "HKLM\Mount" -RegistryHive "$ImageMountFolder\Windows\system32\config\SOFTWARE"
     Start-Sleep 2
     $SDARegKey = "HKLM:\Mount\Microsoft\Surface\SDA"
     New-RegKey $SDARegKey
@@ -2573,8 +2772,9 @@ Function TattooRegistry
         Set-ItemProperty -Path $SDARegKey -Name SDAVersion -Value $SDAVersion
     }
 
-
-    & reg.exe unload "HKLM\Mount"
+    Start-Sleep 5
+    Write-Output "Unloading the registry key..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+    UnloadRegistryHive -MountPoint "HKLM\Mount"
     Start-Sleep 2
 }
 
@@ -2700,6 +2900,7 @@ Function Update-Win10WIM
             Start-Sleep 2
         }
 
+        # Add servicing stack (SSU), if exists.
         If ($ServicingStack -eq $true)
         {
             $SSU = Get-ChildItem -Path $ServicingStackPath
@@ -2727,8 +2928,32 @@ Function Update-Win10WIM
             {
                 # Add monthly Cumulative update
                 Write-Output "Adding Cumulative updates to $ImageMountFolder..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-                Add-PackageIntoWindowsImage -ImageMountFolder $ImageMountFolder -PackagePath $CumulativeUpdatePath -TempImagePath $TmpImage -DismountImageOnCompletion $False
-                Start-Sleep 2
+                try
+                {
+                    Add-PackageIntoWindowsImage -ImageMountFolder $ImageMountFolder -PackagePath $CumulativeUpdatePath -TempImagePath $TmpImage -DismountImageOnCompletion $False
+                    Start-Sleep 2
+                }
+                catch
+                {
+                    $theError = $_
+                    Write-Output "$theError" | Receive-Output -Color Red -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+
+                    If ($theError.Exception -like "*0x8007007e*")
+                    {
+                        Write-Output "This failure is a known issue with combined cumulative update, we can ignore." | Receive-Output -Color Yellow -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                    }
+                    ElseIf ($theError.Exception -like "*0x800f0823*")
+                    {
+                        Write-Output "This failure is a known issue with combined cumulative update, we need to try install same package again" | Receive-Output -Color Yellow -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                        Write-Output "Re-installing the cumulative update..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                        Add-PackageIntoWindowsImage -ImageMountFolder $ImageMountFolder -PackagePath $CumulativeUpdatePath -TempImagePath $TmpImage -DismountImageOnCompletion $False
+                        Start-Sleep 2
+                    }
+                    else
+                    {
+                        throw
+                    }
+                }
             }
         }
 
@@ -2884,6 +3109,7 @@ Function Update-Win10WIM
         Write-Output ""
         Write-Output ""
 
+        # Add servicing stack (SSU), if exists.
         If ($ServicingStack)
         {
             $SSU = Get-ChildItem -Path $ServicingStackPath
@@ -2909,10 +3135,34 @@ Function Update-Win10WIM
             }
             Else
             {
-                # Add monthly Cumulative updates to the WinRE image
-                Write-Output "Adding Cumulative updates to $WinREImageMountFolder..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-                Add-PackageIntoWindowsImage -ImageMountFolder $WinREImageMountFolder -PackagePath $CumulativeUpdatePath -TempImagePath $TmpWinREImage -DismountImageOnCompletion $False
-                Start-Sleep 2
+                try
+                {
+                    # Add monthly Cumulative updates to the WinRE image
+                    Write-Output "Adding Cumulative updates to $WinREImageMountFolder..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                    Add-PackageIntoWindowsImage -ImageMountFolder $WinREImageMountFolder -PackagePath $CumulativeUpdatePath -TempImagePath $TmpWinREImage -DismountImageOnCompletion $False
+                    Start-Sleep 2
+                }
+                catch
+                {
+                    $theError = $_
+                    Write-Output "$theError" | Receive-Output -Color Red -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+
+                    If ($theError.Exception -like "*0x8007007e*")
+                    {
+                        Write-Output "This failure is a known issue with combined cumulative update, we can ignore." | Receive-Output -Color Yellow -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                    }
+                    ElseIf ($theError.Exception -like "*0x800f0823*")
+                    {
+                        Write-Output "This failure is a known issue with combined cumulative update, we need to try install same package again" | Receive-Output -Color Yellow -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                        Write-Output "Re-installing the cumulative update..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                        Add-PackageIntoWindowsImage -ImageMountFolder $WinREImageMountFolder -PackagePath $CumulativeUpdatePath -TempImagePath $TmpWinREImage -DismountImageOnCompletion $False
+                        Start-Sleep 2
+                    }
+                    else
+                    {
+                        throw
+                    }
+                }
             }
         }
 
@@ -3040,6 +3290,8 @@ Function Update-Win10WIM
             Write-Output ""
         }
 
+        Start-Sleep 5
+
         # Remove temporary WIMs
         If (Test-Path -path $TmpImage)
         {
@@ -3093,8 +3345,11 @@ Function Update-Win10WIM
         Write-Output ""
         Write-Output ""
 
+        Write-Output "WindowsKitsInstall : $WindowsKitsInstall" | Receive-Output -Color Cyan -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Write-Output "Mounted $TmpBootImage to $BootImageMountFolder using Index 1..." | Receive-Output -Color Green -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 
-        <#If ($ServicingStack)
+        # Add Servicing stack (SSU), if exists.
+        If ($ServicingStack)
         {
             $SSU = Get-ChildItem -Path $ServicingStackPath
             If (!($SSU.Exists))
@@ -3119,9 +3374,35 @@ Function Update-Win10WIM
             }
             Else
             {
-                # Add monthly Cumulative update
-                Write-Output "Adding Cumulative updates to $BootImageMountFolder..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-                Add-PackageIntoWindowsImage -ImageMountFolder $BootImageMountFolder -PackagePath $CumulativeUpdatePath -TempImagePath $TmpBootImage -DismountImageOnCompletion $False
+                # Add SSU and monthly Cumulative update (Windows 10 CU is Uno and Windows 11 is OnePackage - Meaning both SSU and latest CU is part of same .msu).
+                Start-Sleep 1
+
+                try
+                {
+                    Write-Output "Adding Cumulative updates to $BootImageMountFolder..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                    Add-PackageIntoWindowsImage -ImageMountFolder $BootImageMountFolder -PackagePath $CumulativeUpdatePath -TempImagePath $TmpBootImage -DismountImageOnCompletion $False
+                }
+                catch
+                {
+                    $theError = $_
+                    Write-Output "$theError" | Receive-Output -Color Red -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+
+                    If ($theError.Exception -like "*0x8007007e*")
+                    {
+                        Write-Output "This failure is a known issue with combined cumulative update, we can ignore." | Receive-Output -Color Yellow -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                    }
+                    ElseIf ($theError.Exception -like "*0x800f0823*")
+                    {
+                        Write-Output "This failure is a known issue with combined cumulative update, we need to try install same package again" | Receive-Output -Color Yellow -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                        Write-Output "Re-installing the cumulative update..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                        Add-PackageIntoWindowsImage -ImageMountFolder $BootImageMountFolder -PackagePath $CumulativeUpdatePath -TempImagePath $TmpBootImage -DismountImageOnCompletion $False
+                        Start-Sleep 2
+                    }
+                    else
+                    {
+                        throw
+                    }
+                }
                 Start-Sleep 2
             }
         }
@@ -3140,7 +3421,7 @@ Function Update-Win10WIM
                 Add-PackageIntoWindowsImage -ImageMountFolder $BootImageMountFolder -PackagePath $CumulativeDotNetPath -TempImagePath $TmpBootImage -DismountImageOnCompletion $False
                 Start-Sleep 2
             }
-        }#>
+        }
 
         If ($Device)
         {
@@ -3337,7 +3618,7 @@ Function Update-Win10WIM
             Write-Output "Insert USB drive 16GB+ in size, and press ENTER to view the drive selection menu" | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
             Write-Output "  Note that choosing a USB drive on the next screen WILL FORMAT THE DRIVE  " | Receive-Output -Color Yellow -LogLevel 2 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
             Write-Output ""
-            PAUSE
+            If (!($Automated)) { PAUSE }
             Start-Sleep 5
 
             # Find USB Drive that the image will be copied to.
@@ -3436,8 +3717,12 @@ Function Update-Win10WIM
             }
             Else
             {
-                Write-Output "Copying $RefImage to $MediaSource..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-                Copy-Item -Path "$RefImage" -Destination "$MediaSource\Sources" -Recurse
+                ## Copy the install.wim to Media destination folder.
+                If ($InstallWIM)
+                {
+                    Write-Output "Copying $RefImage to $MediaSource..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                    Copy-Item -Path "$RefImage" -Destination "$MediaSource\Sources" -Recurse
+                }
             }
 
             Start-Process -FilePath $oscdimg -ArgumentList $args -NoNewWindow -Wait
@@ -3479,7 +3764,13 @@ Function Update-Win10WIM
     Write-Output ""
 }
 
-
+function ConvertArchitecture($arch) {
+    switch ($arch) {
+        "x64" { return "amd64" }
+        "arm64" { return "arm64" }
+        default { return "Unknown architecture" }
+    }
+}
 
 ###########################
 # Begin script processing #
@@ -3518,7 +3809,6 @@ If ($Device)
     $SurfaceDevices = $WinPEXML.Surface.Devices
 }
 
-
 # Necessary variables not passed into script directly
 $DISMFile = "$WindowsKitsInstall\Deployment Tools\amd64\DISM\dism.exe"
 $ADKWinPEFile = "$WindowsKitsInstall\Windows Preinstallation Environment\amd64\en-us\winpe.wim"
@@ -3542,13 +3832,120 @@ if(Test-Path -Path $Mount)
     }
 }
 
+## This is hack to avoid any existing mount points
+UnloadRegistryHive -MountPoint "HKLM\Mount"
+
 
 # Leave blank space at top of window to not block output by progress bars
 AddHeaderSpace
 
+<#
+# STEPS for setting up correct ADK tools
+# 1. Get the OS version from install.wim from ISO.
+
+# 2. Check whether $WindowsKitsInstall (passed by user) path is valid. If valid check whether the version of ADK matches with OS version of ISO. 
+		If Yes Goto 6
+
+# 3. Check whether any ADK installed or not by checking registry (HKLM:\SOFTWARE\Microsoft\Windows Kits\Installed Roots" -Name "KitsRoot10)
+		If Yes Goto 6
+
+# 4. Uninstall the current ADK and WinPE, if exists
+
+# 5. Download & Install the matching ADK and WinPE version.
+
+# 6. Use ADK found or installed by one of above steps.
+#>
 
 # Check for admin rights and ADK install
 PrereqCheck
+
+
+# Identifiy the Windows Version in question by reading information from ISO.
+$WindowsOSVersionFull = Get-WindowsOSVersionFromISO -ISO $ISO
+Write-Output "OS Version from setup.exe: $global:FullOSVersionFromSetupEXE" | Receive-Output -Color Yellow -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+
+$WindowsOSVersionFull = $global:FullOSVersionFromSetupEXE
+$ADKRootRegistryKey = "HKLM:\SOFTWARE\Microsoft\Windows Kits\Installed Roots"
+$ConvertedArch = ConvertArchitecture($Architecture).Trim()
+$IsValidADKFound = $false
+
+$WindowsOSVersionMajorMinorBuild = $WindowsOSVersionFull.Substring(0, $WindowsOSVersionFull.LastIndexOf('.'))
+
+# Check whether user provided ADK path is valid or not.
+Write-Output "Checking WindowsKitsInstall: $WindowsKitsInstall" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+If (Test-Path -Path "$WindowsKitsInstall")
+{
+    Write-Output "ADK Path [$WindowsKitsInstall] is valid, verify version" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+    $DISMFile = "$WindowsKitsInstall\Deployment Tools\amd64\DISM\dism.exe"
+    $ADKWinPEFile = "$WindowsKitsInstall\Windows Preinstallation Environment\$ConvertedArch\en-us\winpe.wim"
+
+    if ((Test-Path -Path $DISMFile) -and (Test-Path -Path $ADKWinPEFile))
+    {
+        $global:InstalledWinPEVersion = (& $DISMFile /Get-WimInfo /WimFile:$ADKWinPEFile /index:1 | Select-String "Version ").ToString().Split(":")[1].Trim()
+        Write-Output "Check vesion: $WindowsOSVersionMajorMinorBuild and $global:InstalledWinPEVersion" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        If ($WindowsOSVersionMajorMinorBuild -eq $global:InstalledWinPEVersion)
+        {
+            $IsValidADKFound = $true
+            $global:InstalledADKRoot = $WindowsKitsInstall
+        }
+    }
+}
+
+# If user provided the ADK path is not valid, then check registry entry to find whether ADK kit installed on machine or not.
+If ($IsValidADKFound -eq $false)
+{
+    Write-Output "Checking registry key: $ADKRootRegistryKey" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+    If (!(Test-Path -Path $ADKRootRegistryKey))
+    {
+        Write-Output "Not found: $ADKRootRegistryKey"
+        $ADKRootRegistryKey = "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows Kits\Installed Roots"
+        Write-Output "Attempting check in Wow6432Node: $ADKRootRegistryKey"
+    }
+
+    If (Test-Path -Path $ADKRootRegistryKey)
+    {
+        $ADKRootPath = Get-ItemPropertyValue -Path $ADKRootRegistryKey -Name "KitsRoot10"
+        Write-Output "Found registry key: $ADKRootRegistryKey" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Write-Output "ADK root from registry: $ADKRootPath" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+
+        If (Test-Path -Path $ADKRootPath)
+        {
+            $InstalledADKRootFromRegistry = "$ADKRootPath\Assessment and Deployment Kit"
+            $DISMFile = "$InstalledADKRootFromRegistry\Deployment Tools\amd64\DISM\dism.exe"
+            $ADKWinPEFile = "$InstalledADKRootFromRegistry\Windows Preinstallation Environment\$ConvertedArch\en-us\winpe.wim"
+
+            Write-Output "Checking for existence of ADK and WinPE" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+            if ((Test-Path -Path $DISMFile) -and (Test-Path -Path $ADKWinPEFile))
+            {
+                $global:InstalledWinPEVersion = (& $DISMFile /Get-WimInfo /WimFile:$ADKWinPEFile /index:1 | Select-String "Version ").ToString().Split(":")[1].Trim()
+
+                Write-Output "Check vesion: $WindowsOSVersionMajorMinorBuild and $global:InstalledWinPEVersion" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+                If ($WindowsOSVersionMajorMinorBuild -eq $global:InstalledWinPEVersion)
+                {
+                    $IsValidADKFound = $true
+                    $global:InstalledADKRoot = $InstalledADKRootFromRegistry
+                }
+            }
+        }
+    }
+}
+
+# Uninstall existing ADK installations, if any.
+If ($IsValidADKFound -eq $false)
+{
+    Write-Output "No known valid ADK/WinPE installation found" | Receive-Output -Color Red -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+    # Uninstall existing ADK and WinPE and install latest version of ADK and WinPE Addon based on OS version.
+    ConfigureADKTools -OSFullVersion $WindowsOSVersionFull
+    $IsValidADKFound = $true
+}
+
+# Above steps will ensures that either existing ADK or newly installed ADK is valid.
+$WindowsKitsInstall = "$global:InstalledADKRoot"
+Write-Output "Using ADK Root: $WindowsKitsInstall" | Receive-Output -Color Green -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+
+# Necessary variables not passed into script directly
+$DISMFile = "$WindowsKitsInstall\Deployment Tools\amd64\DISM\dism.exe"
+$ADKWinPEFile = "$WindowsKitsInstall\Windows Preinstallation Environment\$ConvertedArch\en-us\winpe.wim"
 
 
 Write-Output "SDA version:  $SDAVersion" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
@@ -3571,6 +3968,8 @@ Write-Output "  Cumulative DotNet Updates:  $CumulativeDotNetUpdate" | Receive-O
 Write-Output "  Adobe Flash Player Updates: $AdobeFlashUpdate" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output "  Out-Of-Band Updates:        $OOBUpdate" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output "  Office 365 install:         $Office365" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+Write-Output "  ADK installation Root:      $WindowsKitsInstall" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+
 If ($Device)
 {
     Write-Output "  Device drivers:             $Device" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
@@ -3581,19 +3980,39 @@ If ($UseLocalDriverPath -eq $True)
 }
 Write-Output "  Create USB key:             $CreateUSB" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output "  Create ISO:                 $CreateISO" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+Write-Output "  Automated:                  $Automated" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output " " | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output " " | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Start-Sleep 2
 
+If (!($Automated))
+{
+    Write-Output "Verifty the parameters passed to script and hit Enter to continue or Press Ctrl + C to cancel" | Receive-Output -Color Yellow -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+    PAUSE
+}
 
 # Pull Windows 10 version and SKU from ISO provided by script param, returns OSVersion and WinPEVersion variable as well
 Get-OSWIMFromISO -ISO $ISO -OSSKU $OSSKU -DestinationFolder $DestinationFolder -Architecture $Architecture -WindowsKitsInstall $WindowsKitsInstall -ScratchMountFolder $ScratchMountFolder
 Start-Sleep 2
+Write-Output "Windows Version:  $global:WindowsVersion" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output "OSVersion:  $global:OSVersion" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
-#Write-Output "ReleaseId:  $global:ReleaseId" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+Write-Output "ReleaseId:  $global:ReleaseId" | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
 Write-Output ""
 Start-Sleep 5
 
+
+If ($global:OSVersion.Trim() -ne $global:WinPEVersion.Trim())
+{
+    If (($global:WinPEVersion.Trim() -eq "10.0.19041") -and ($Windows10Versions -contains $global:OSVersion.Trim()))
+    {
+        Write-Output "WinPE ver: $global:WinPEVersion supports OS ver: $global:OSVersion, Hence proceed..." | Receive-Output -Color Yellow -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+    }
+    Else
+    {
+        Write-Output "OSVersion: $global:OSVersion and WinPEVersion: $global:WinPEVersion are not matching" | Receive-Output -Color Red -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Exit
+    }
+}
 
 # Variables needed after Get-OSWIMFromISO finishes, passed to Update-Win10WIM
 $SourcePath = "$DestinationFolder\$OSSKU\$global:WindowsVersion\$global:OSVersion\$Architecture\SourceWIMs"
@@ -3680,35 +4099,35 @@ If ($ServicingStack -eq $True)
     Get-ServicingStackUpdates -TempFolder $TempFolder
 }
 
-PAUSE
+If (!($Automated)) { PAUSE }
 
 If ($CumulativeUpdate -eq $True)
 {
     Get-CumulativeUpdates -TempFolder $TempFolder
 }
 
-PAUSE
+If (!($Automated)) { PAUSE }
 
 If ($DotNet35 -eq $True)
 {
     Get-CumulativeDotNetUpdates -TempFolder $TempFolder
 }
 
-PAUSE
+If (!($Automated)) { PAUSE }
 
 If ($AdobeFlashUpdate -eq $True)
 {
 	Get-AdobeFlashUpdates -TempFolder $TempFolder
 }
 
-PAUSE
+If (!($Automated)) { PAUSE }
 
 If ($OOBUpdate -eq $True)
 {
 	Get-OOBUpdates -TempFolder $TempFolder
 }
 
-PAUSE
+If (!($Automated)) { PAUSE }
 
 
 # Add Servicing Stack / Cumulative updates and necessary drivers to install.wim, winre.wim, and boot.wim
