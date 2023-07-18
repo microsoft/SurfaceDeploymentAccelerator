@@ -252,7 +252,7 @@ Param(
         Mandatory=$False,
         HelpMessage="Path to an MSI or extracted driver folder - required if you set UseLocalDriverPath variable to true or script will not find any drivers to inject"
         )]
-        [string]$LocalDriverPath
+        [string]$LocalDriverPath,
 
     [Parameter(
         Position=22,
