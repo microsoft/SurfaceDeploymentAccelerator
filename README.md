@@ -78,7 +78,7 @@ The parameters that are supported to configure for the script are as follows:
  
  -Office365:                  Download and install the latest monthly C2R installation of Office 365, True or False.  True is the default.
  
- -Device:                     Enter Surface device type to download and inject latest drivers for.  Possible values: SurfacePro4, SurfacePro5, SurfacePro6, SurfacePro7, SurfacePro7Plus, SurfacePro8, SurfaceLaptop, SurfaceLaptop2, SurfaceLaptop3Intel, SurfaceLaptop3AMD, SurfaceLaptop4Intel, SurfaceLaptop4AMD, SurfaceLaptopGo, SurfaceLaptopStudio, SurfaceBook, SurfaceBook2, SurfaceBook3, SurfaceStudio, SurfaceStudio2, SurfaceGo, SurfaceGoLTE, SurfaceGo2, SurfaceGo3, SurfaceHub2, and Custom.  If this parameter is not specified, SurfacePro8 is used.
+ -Device:                     Enter Surface device type to download and inject latest drivers for.  Possible values: SurfacePro4, SurfacePro5, SurfacePro6, SurfacePro7, SurfacePro7Plus, SurfacePro8, SurfacePro9Intel, SurfaceLaptop, SurfaceLaptop2, SurfaceLaptop3Intel, SurfaceLaptop3AMD, SurfaceLaptop4Intel, SurfaceLaptop4AMD, SurfaceLaptop5, SurfaceLaptopGo, SurfaceLaptopStudio, SurfaceBook, SurfaceBook2, SurfaceBook3, SurfaceStudio, SurfaceStudio2, SurfaceGo, SurfaceGoLTE, SurfaceGo2, SurfaceGo3, SurfaceHub2, and Custom.  If this parameter is not specified, SurfacePro8 is used.
 
  -CreateUSB:                  Create bootable USB installation when finished, True or False.  True is the default.
 
@@ -95,3 +95,5 @@ The parameters that are supported to configure for the script are as follows:
  -UseLocalDriverPath          Use a local driver path and skip downloading the latest MSI for Device, True or False.  False is default.  If this parameter is set, you must also set LocalDriverPath to a valid path containing the extracted drivers you wish to inject, or this will fail.
 
  -LocalDriverPath             Filesystem (accessible to this PowerShell instance) path containing drivers to use.  Only read if UseLocalDriverPath is set to True.
+
+ -Automated                   If true, skips any pause commands in this script, default is false
