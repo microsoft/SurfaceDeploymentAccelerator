@@ -1855,7 +1855,15 @@ Function LoadRegistryHive
 
     Write-Output "Loading registry..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
     & reg.exe load "$MountPoint" "$RegistryHive"
-    Write-Output "Done loading registry..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+    if ($LASTEXITCODE -eq 0)
+    {
+        Write-Output "Done loading registry..." | Receive-Output -Color White -LogLevel 1 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+    }
+    else
+    {
+        Write-Output "Failed to mount $RegistryHive to $MountPoint" | Receive-Output -Color Red -BGColor Black -LogLevel 3 -LineNumber "$($Invocation.MyCommand.Name):$( & {$MyInvocation.ScriptLineNumber})"
+        Exit
+    }
 }
 
 Function UnloadRegistryHive
@@ -1863,8 +1871,8 @@ Function UnloadRegistryHive
     Param(
         $MountPoint
     )
-    
-    If (Test-Path -Path $MountPoint)
+
+    If (Test-Path -Path $MountPoint.Replace("HKLM\","HKLM:\"))
     {
         $retries = 3
 
