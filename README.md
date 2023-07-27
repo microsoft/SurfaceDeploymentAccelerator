@@ -70,7 +70,7 @@ The parameters that are supported to configure for the script are as follows:
  
  -ServicingStack:             Download/inject latest servicing stack update, True or False.  True is the default.
  
- -CumulativeUpdate:           Download/inject latest cumulative update, True or False.  True is the default.
+ -CumulativeUpdate:           Download/inject latest cumulative update, True or False.  True is the default.  If SDA image will be used on a UFS device, please set this to True.
  
  -CumulativeDotNetUpdate:     Download/inject latest cumulative update, True or False.  True is the default.
  
