@@ -873,7 +873,7 @@ Function Download-LatestUpdates
         
         $post = @{ size = 0; updateID = $guid; uidInfo = $guid } | ConvertTo-Json -Compress
         $body = @{ updateIDs = "[$post]" }
-        Invoke-WebRequest -Uri 'https://www.catalog.update.microsoft.com/DownloadDialog.aspx' -Method Post -Body $body | Select-Object -ExpandProperty Content
+        Invoke-WebRequest -Uri 'https://www.catalog.update.microsoft.com/DownloadDialog.aspx' -Method Post -Body $body -UseBasicParsing | Select-Object -ExpandProperty Content
     }
 
     $downloaddialogs = $global:KBGUID | ForEach-Object -Process $scriptblock
@@ -1240,7 +1240,7 @@ Function Get-LatestSurfaceEthernetDrivers
         
             $post = @{ size = 0; updateID = $guid; uidInfo = $guid } | ConvertTo-Json -Compress
             $body = @{ updateIDs = "[$post]" }
-            Invoke-WebRequest -Uri 'https://www.catalog.update.microsoft.com/DownloadDialog.aspx' -Method Post -Body $body | Select-Object -ExpandProperty Content
+            Invoke-WebRequest -Uri 'https://www.catalog.update.microsoft.com/DownloadDialog.aspx' -Method Post -Body $body -UseBasicParsing | Select-Object -ExpandProperty Content
         }
 
         $downloaddialogs = $global:KBGUID | ForEach-Object -Process $scriptblock
