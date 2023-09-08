@@ -1202,7 +1202,7 @@ Function Get-LatestSurfaceEthernetDrivers
     }
     Else
     {
-        $URI = "http://www.catalog.update.microsoft.com/Search.aspx?q=Realtek - Net - 10."
+        $URI = "https://www.catalog.update.microsoft.com/Search.aspx?q=Realtek - Net - 10."
         $kbObj = Invoke-WebRequest -Uri $uri -UseBasicParsing
 
         # Parse the Response
@@ -1237,7 +1237,6 @@ Function Get-LatestSurfaceEthernetDrivers
         $scriptblock = {
             $guid = $_.Guid
             $itemtitle = $_.description
-            #$guid
        
             $post = @{ size = 0; updateID = $guid; uidInfo = $guid } | ConvertTo-Json -Compress
             $body = @{ updateIDs = "[$post]" }
