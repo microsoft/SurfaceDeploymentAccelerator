@@ -1202,7 +1202,7 @@ Function Get-LatestSurfaceEthernetDrivers
     }
     Else
     {
-        $URI = 'https://www.catalog.update.microsoft.com/Search.aspx?q=Realtek - Net - 10.45.0308.2021'
+        $URI = "https://www.catalog.update.microsoft.com/Search.aspx?q=Realtek - Net - 10."
         $kbObj = Invoke-WebRequest -Uri $uri -UseBasicParsing
 
         # Parse the Response
@@ -1217,27 +1217,27 @@ Function Get-LatestSurfaceEthernetDrivers
         # Initialize array, get title and GUID of update
         $guids = $null
         $guids = @()
-        foreach ($kbObjectsLink in $kbObjectsLinks)
+        ForEach ($kbObjectsLink in $kbObjectsLinks)
         {
             $itemguid = $kbObjectsLink.id.replace('_link', '')
             $itemtitle = ($kbObjectsLink.outerHTML -replace '<[^>]+>', '').Trim()
-            if ($itemguid -in $kbObjects) {
+            If ($itemguid -in $kbObjects)
+            {
                 $guids += [pscustomobject]@{
                     guid  = $itemguid
                     description = $itemtitle
                 }
             }
         }
-        
+
         # Return a hard-coded array member for now until this settles out - changeover from "Surface - NET" to "Realtek - Net" causes issues with # of returns and version info changes
-        #$global:KBGUID = $guids | Where-Object {($_.description -like "*Realtek - Net - 10.45.0308.2021*")}
+        #$global:KBGUID = $guids | Where-Object {($_.description -like "*Realtek - Net - 10.*")}
         $global:KBGUID = $guids[0]
 
         $scriptblock = {
             $guid = $_.Guid
             $itemtitle = $_.description
-            $guid
-        
+       
             $post = @{ size = 0; updateID = $guid; uidInfo = $guid } | ConvertTo-Json -Compress
             $body = @{ updateIDs = "[$post]" }
             Invoke-WebRequest -Uri 'https://www.catalog.update.microsoft.com/DownloadDialog.aspx' -Method Post -Body $body | Select-Object -ExpandProperty Content
@@ -1258,16 +1258,22 @@ Function Get-LatestSurfaceEthernetDrivers
                 $downloaddialog = $downloaddialog.Replace('www.download.windowsupdate', 'download.windowsupdate')
                 $DLWUDOTCOM = ($downloaddialog | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } } ).source
                 $DLDELDOTCOM = ($downloaddialog | Select-String -AllMatches -Pattern "(http[s]?\://dl\.delivery\.mp\.microsoft\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } } ).source
+                $DLCATALOGDOTCOM = ($downloaddialog | Select-String -AllMatches -Pattern "(http[s]?\://catalog\.s\.download\.windowsupdate\.com\/[^\'\""]*)" | Select-Object -Unique | ForEach-Object { [PSCustomObject] @{ Source = $_.matches.value } } ).source
 
                 If ($DLWUDOTCOM)
                 {
-                "URL:     $link"
+                    "URL:     $link"
                     $links = $DLWUDOTCOM
                 }
                 If ($DLDELDOTCOM)
                 {
                     $links = $DLDELDOTCOM
                 }
+                If ($DLCATALOGDOTCOM)
+                {
+                    $links = $DLCATALOGDOTCOM
+                }
+
 
                 If ($links)
                 {
